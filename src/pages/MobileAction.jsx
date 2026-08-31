@@ -17,7 +17,7 @@ export default function MobileAction() {
 
         const fetchVisitor = async () => {
             try {
-                const v = await db.visitors.get({ id: visitorId });
+                const v = await db.visitors.get(visitorId);
                 if (v) {
                     setVisitor(v);
                     setStatus('ready');
