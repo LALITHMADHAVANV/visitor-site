@@ -1,0 +1,141 @@
+.badge-print-container {
+    display: none;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    .badge-print-container, .badge-print-container * {
+        visibility: visible;
+    }
+    
+    .badge-print-container {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .badge-card {
+        width: 3.375in;
+        height: 2.125in; /* Standard CR80 badge size */
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 16px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: white !important;
+        color: black !important;
+        font-family: sans-serif;
+        page-break-after: always;
+    }
+
+    .badge-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 8px;
+    }
+
+    .badge-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: bold;
+        color: #3b82f6 !important;
+    }
+
+    .badge-title {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: #64748b !important;
+    }
+
+    .badge-body {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+        flex: 1;
+    }
+
+    .badge-photo-container {
+        width: 1in;
+        height: 1in;
+        border-radius: 4px;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: #f1f5f9 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .badge-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .badge-photo-placeholder {
+        font-size: 32px;
+        font-weight: bold;
+        color: #cbd5e1 !important;
+    }
+
+    .badge-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .visitor-name {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a !important;
+        line-height: 1.2;
+    }
+
+    .visitor-company {
+        margin: 0;
+        font-size: 14px;
+        color: #64748b !important;
+        font-weight: 500;
+    }
+
+    .host-info, .date-info {
+        margin-top: 6px;
+        font-size: 12px;
+        display: flex;
+        gap: 4px;
+    }
+
+    .label {
+        color: #94a3b8 !important;
+    }
+    .value {
+        color: #334155 !important;
+        font-weight: 600;
+    }
+
+    .badge-footer {
+        text-align: right;
+        margin-top: 8px;
+    }
+
+    .badge-id {
+        font-family: monospace;
+        font-size: 10px;
+        color: #94a3b8 !important;
+    }
+}

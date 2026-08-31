@@ -1,0 +1,43 @@
+.form-container {
+    padding: 32px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 32px;
+}
+
+.photo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.camera-container {
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    background: rgba(0,0,0,0.3);
+    border: 2px dashed var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-overlay {
+    position: absolute;
+    font-size: 48px;
+    color: rgba(255,255,255,0.2);
+    z-index: 0;
+}
+
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
