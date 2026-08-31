@@ -79,8 +79,7 @@ export default function Register({ isKiosk = false }) {
     };
 
     if (successQR) {
-        const currentHost = window.location.host;
-        const qrUrl = `http://${currentHost}/mobile-action?id=${successQR}`;
+        const qrUrl = `${window.location.origin}/mobile-action?id=${successQR}`;
         
         return (
             <section className="view-section active">
