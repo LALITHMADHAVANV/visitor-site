@@ -112,8 +112,8 @@ export default function MobileAction() {
     return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
             <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
-                <i className="fa-solid fa-shield-halved" style={{ fontSize: '48px', color: 'var(--accent-primary)', marginBottom: '16px' }}></i>
-                <h2 style={{ marginBottom: '4px' }}>Security Scanner Pass</h2>
+                <i className="fa-solid fa-id-card" style={{ fontSize: '48px', color: 'var(--accent-primary)', marginBottom: '16px' }}></i>
+                <h2 style={{ marginBottom: '4px' }}>Visitor Pass</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>Visitor Management Portal</p>
                 
                 {/* Visitor Info Card */}
@@ -157,9 +157,9 @@ export default function MobileAction() {
                 {/* State 3: Ready to Check Out (Requires Host PIN) */}
                 {status === 'ready-checkout' && (
                     <div>
-                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Check Out Visitor</h3>
+                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Check Out</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            Enter the 4-digit Host PIN sent to Telegram to authorize exit:
+                            Enter the 4-digit PIN provided by your host (<strong>{visitor?.hostName}</strong>) to check out:
                         </p>
 
                         <form onSubmit={handleConfirmCheckOut}>
