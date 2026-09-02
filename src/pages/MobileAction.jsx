@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { db } from '../db';
 import { sendTelegramMessage } from '../telegram';
 import './Scanner.css'; // Reuse scanner styles
@@ -7,9 +8,10 @@ import './Scanner.css'; // Reuse scanner styles
 export default function MobileAction() {
     const [searchParams] = useSearchParams();
     const visitorId = searchParams.get('id');
+    const actionParam = searchParams.get('action');
     
     const [visitor, setVisitor] = useState(null);
-    const [status, setStatus] = useState('loading'); // loading, ready-checkin, ready-checkout, success-in, success-out, error
+    const [status, setStatus] = useState('loading'); // loading, ready-checkin, enter-pin, show-exit-qr, success-out, error
     
     const [enteredPin, setEnteredPin] = useState('');
     const [pinError, setPinError] = useState('');
@@ -21,7 +23,7 @@ export default function MobileAction() {
             return;
         }
 
-        const fetchVisitorInfo = async () => {
+        const handleFlow = async () => {
             try {
                 const v = await db.visitors.get(visitorId);
                 if (!v) {
@@ -30,29 +32,47 @@ export default function MobileAction() {
                 }
                 setVisitor(v);
 
+                // 1. Security Exit Scan (`action=checkout`)
+                if (actionParam === 'checkout') {
+                    if (v.status === 'checked-out') {
+                        setStatus('success-out');
+                    } else {
+                        await db.visitors.update(v.id, {
+                            status: 'checked-out',
+                            checkOutTime: new Date().toISOString(),
+                            auth_pin: null
+                        });
+                        setStatus('success-out');
+                    }
+                    return;
+                }
+
+                // 2. Entrance & Visitor PIN Flow
                 if (v.status === 'registered' || v.status === 'expected') {
                     setStatus('ready-checkin');
                 } else if (v.status === 'checked-in') {
-                    setStatus('ready-checkout');
+                    // If PIN was already verified in this session, stay on exit QR, otherwise ask for PIN
+                    setStatus('enter-pin');
                 } else if (v.status === 'checked-out') {
                     setStatus('success-out');
                 } else {
                     setStatus('error');
                 }
             } catch (err) {
-                console.error("MobileAction Fetch Error:", err);
+                console.error("MobileAction Error:", err);
                 setStatus('error');
             }
         };
 
-        fetchVisitorInfo();
-    }, [visitorId]);
+        handleFlow();
+    }, [visitorId, actionParam]);
 
+    // Security Check-In Action
     const handleConfirmCheckIn = async () => {
         if (!visitor) return;
         setProcessing(true);
         try {
-            // Generate 4-digit PIN for Host
+            // Generate 4-digit Host PIN
             const pin = Math.floor(1000 + Math.random() * 9000).toString();
             
             await db.visitors.update(visitor.id, {
@@ -61,11 +81,11 @@ export default function MobileAction() {
                 auth_pin: pin
             });
 
-            // Send Telegram message to Host
+            // Dispatch Telegram message to Host
             await sendTelegramMessage(visitor.name, visitor.hostName, pin);
             
             setVisitor(prev => ({ ...prev, status: 'checked-in', auth_pin: pin }));
-            setStatus('success-in');
+            setStatus('enter-pin');
         } catch (err) {
             console.error("Check-in error:", err);
             setStatus('error');
@@ -74,12 +94,13 @@ export default function MobileAction() {
         }
     };
 
-    const handleConfirmCheckOut = async (e) => {
+    // Visitor PIN Verification Action (On Visitor's Phone)
+    const handlePinVerification = async (e) => {
         e.preventDefault();
         setPinError('');
         
         if (!enteredPin) {
-            setPinError('Please enter the 4-digit PIN from the host.');
+            setPinError('Please enter the 4-digit PIN from your host.');
             return;
         }
 
@@ -88,19 +109,14 @@ export default function MobileAction() {
             const v = await db.visitors.get(visitorId);
             
             if (v && v.auth_pin === enteredPin) {
-                // PIN verified! Complete check-out
-                await db.visitors.update(visitorId, {
-                    status: 'checked-out',
-                    checkOutTime: new Date().toISOString(),
-                    auth_pin: null
-                });
-                setStatus('success-out');
+                // PIN verified! Show Exit QR Code
+                setStatus('show-exit-qr');
             } else {
-                setPinError('Invalid PIN. Please enter the 4-digit PIN sent to the host.');
+                setPinError('Invalid PIN. Please ask your host for the 4-digit code sent to their Telegram.');
             }
         } catch (error) {
-            console.error("Check-out verification error:", error);
-            setPinError('Error completing check-out.');
+            console.error("PIN Verification Error:", error);
+            setPinError('Error verifying PIN.');
         } finally {
             setProcessing(false);
         }
@@ -116,7 +132,7 @@ export default function MobileAction() {
                 <h2 style={{ marginBottom: '4px' }}>Visitor Pass</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>Visitor Management Portal</p>
                 
-                {/* Visitor Info Card */}
+                {/* Visitor Info Summary */}
                 {visitor && (
                     <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', marginBottom: '24px', textAlign: 'left' }}>
                         <p style={{ margin: '4px 0', color: 'white' }}><strong>Visitor:</strong> {visitor.name}</p>
@@ -126,7 +142,7 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 1: Ready to Check In */}
+                {/* State 1: Entrance Scan (Security Clicks Check In) */}
                 {status === 'ready-checkin' && (
                     <div>
                         <button 
@@ -135,34 +151,20 @@ export default function MobileAction() {
                             onClick={handleConfirmCheckIn}
                             disabled={processing}
                         >
-                            {processing ? 'Processing...' : 'Confirm Check In'}
+                            {processing ? 'Processing...' : 'Confirm Entrance Check In'}
                         </button>
                     </div>
                 )}
 
-                {/* State 2: Just Checked In */}
-                {status === 'success-in' && (
+                {/* State 2: Visitor Enters Host PIN on Visitor Phone */}
+                {status === 'enter-pin' && (
                     <div>
-                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'var(--success)', marginBottom: '8px' }}>Checked In Successfully!</h3>
+                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            A 4-digit PIN has been dispatched to <strong>{visitor?.hostName}</strong> via Telegram.
-                        </p>
-                        <button className="btn btn-outline w-100" onClick={() => setStatus('ready-checkout')}>
-                            Proceed to Check-Out Verification
-                        </button>
-                    </div>
-                )}
-
-                {/* State 3: Ready to Check Out (Requires Host PIN) */}
-                {status === 'ready-checkout' && (
-                    <div>
-                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Check Out</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            Enter the 4-digit PIN provided by your host (<strong>{visitor?.hostName}</strong>) to check out:
+                            A 4-digit PIN was sent to <strong>{visitor?.hostName}</strong> via Telegram. Enter it below to unlock your <strong>Exit QR Code</strong>:
                         </p>
 
-                        <form onSubmit={handleConfirmCheckOut}>
+                        <form onSubmit={handlePinVerification}>
                             {pinError && <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '14px' }}>{pinError}</div>}
                             
                             <div className="form-group" style={{ marginBottom: '20px' }}>
@@ -179,18 +181,37 @@ export default function MobileAction() {
                             </div>
 
                             <button type="submit" className="btn btn-primary w-100" style={{ padding: '14px', fontSize: '16px' }} disabled={processing}>
-                                {processing ? 'Verifying...' : 'Verify PIN & Check Out'}
+                                {processing ? 'Verifying...' : 'Verify & Unlock Exit QR'}
                             </button>
                         </form>
                     </div>
                 )}
 
-                {/* State 4: Checked Out */}
+                {/* State 3: Display Exit QR Code (Visitor Shows to Security) */}
+                {status === 'show-exit-qr' && (
+                    <div>
+                        <i className="fa-solid fa-lock-open text-primary" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
+                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Check-Out Exit Pass</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+                            Present this <strong>Exit QR Code</strong> to Security at the gate to check out:
+                        </p>
+                        
+                        <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
+                            <QRCodeSVG value={`${window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} size={220} />
+                        </div>
+
+                        <p style={{ color: 'var(--success)', fontSize: '14px', fontWeight: 'bold' }}>
+                            ✓ Host PIN Verified
+                        </p>
+                    </div>
+                )}
+
+                {/* State 4: Security Scanned Exit QR Code (Checked Out) */}
                 {status === 'success-out' && (
                     <div>
                         <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'var(--accent-primary)', marginBottom: '8px' }}>Visitor Checked Out</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>This pass is completed and closed.</p>
+                        <h3 style={{ color: 'var(--accent-primary)', marginBottom: '8px' }}>Checked Out Successfully!</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Thank you for visiting. Have a safe trip!</p>
                     </div>
                 )}
             </div>
