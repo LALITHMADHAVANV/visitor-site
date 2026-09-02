@@ -11,7 +11,7 @@ export default function MobileAction() {
     const actionParam = searchParams.get('action');
     
     const [visitor, setVisitor] = useState(null);
-    const [status, setStatus] = useState('loading'); // loading, ready-checkin, enter-pin, show-exit-qr, success-out, error
+    const [status, setStatus] = useState('loading'); // loading, ready-checkin, checkin-done, enter-pin, show-exit-qr, success-out, error
     
     const [enteredPin, setEnteredPin] = useState('');
     const [pinError, setPinError] = useState('');
@@ -47,11 +47,16 @@ export default function MobileAction() {
                     return;
                 }
 
-                // 2. Entrance & Visitor PIN Flow
+                // 2. Entrance Scan (`action=checkin`)
+                if (actionParam === 'checkin' && (v.status === 'registered' || v.status === 'expected')) {
+                    setStatus('ready-checkin');
+                    return;
+                }
+
+                // 3. General Visitor Link Access (Visitor on their phone)
                 if (v.status === 'registered' || v.status === 'expected') {
                     setStatus('ready-checkin');
                 } else if (v.status === 'checked-in') {
-                    // If PIN was already verified in this session, stay on exit QR, otherwise ask for PIN
                     setStatus('enter-pin');
                 } else if (v.status === 'checked-out') {
                     setStatus('success-out');
@@ -85,7 +90,7 @@ export default function MobileAction() {
             await sendTelegramMessage(visitor.name, visitor.hostName, pin);
             
             setVisitor(prev => ({ ...prev, status: 'checked-in', auth_pin: pin }));
-            setStatus('enter-pin');
+            setStatus('checkin-done');
         } catch (err) {
             console.error("Check-in error:", err);
             setStatus('error');
@@ -142,7 +147,7 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 1: Entrance Scan (Security Clicks Check In) */}
+                {/* State 1: Security Entrance Scan (Security Clicks Check In) */}
                 {status === 'ready-checkin' && (
                     <div>
                         <button 
@@ -156,7 +161,18 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 2: Visitor Enters Host PIN on Visitor Phone */}
+                {/* State 2: Security Entrance Scan Complete */}
+                {status === 'checkin-done' && (
+                    <div>
+                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
+                        <h3 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                            Visitor is checked in. Telegram PIN sent to <strong>{visitor?.hostName}</strong>.
+                        </p>
+                    </div>
+                )}
+
+                {/* State 3: Visitor Enters Host PIN on Visitor Phone */}
                 {status === 'enter-pin' && (
                     <div>
                         <h3 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h3>
@@ -187,7 +203,7 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 3: Display Exit QR Code (Visitor Shows to Security) */}
+                {/* State 4: Display Exit QR Code (Visitor Shows to Security at Exit) */}
                 {status === 'show-exit-qr' && (
                     <div>
                         <i className="fa-solid fa-lock-open text-primary" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
@@ -206,7 +222,7 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 4: Security Scanned Exit QR Code (Checked Out) */}
+                {/* State 5: Security Scanned Exit QR Code (Checked Out) */}
                 {status === 'success-out' && (
                     <div>
                         <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
