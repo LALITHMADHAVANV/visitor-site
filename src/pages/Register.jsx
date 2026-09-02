@@ -119,7 +119,7 @@ export default function Register({ isKiosk = false }) {
 
         // 1. Initial check & fast interval polling
         checkStatus();
-        const interval = setInterval(checkStatus, 1000);
+        const interval = setInterval(checkStatus, 90);
 
         // 2. Supabase Realtime WebSocket listener for instant push update
         let channel;
