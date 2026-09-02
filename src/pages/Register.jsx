@@ -159,9 +159,18 @@ export default function Register({ isKiosk = false }) {
         }
     };
 
+    const getCleanOrigin = () => {
+        const origin = window.location.origin;
+        if (origin.includes('.vercel.app') && origin.includes('-')) {
+            return 'https://visitor-site-seven.vercel.app';
+        }
+        return origin;
+    };
+
     if (successQR) {
-        const qrUrl = `${window.location.origin}/mobile-action?id=${successQR}&action=checkin`;
-        const exitQrUrl = `${window.location.origin}/mobile-action?id=${successQR}&action=checkout`;
+        const cleanOrigin = getCleanOrigin();
+        const qrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkin`;
+        const exitQrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkout`;
         
         return (
             <section className="view-section active">
