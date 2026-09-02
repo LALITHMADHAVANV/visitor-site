@@ -70,6 +70,10 @@ export default function MobileAction() {
         };
 
         handleFlow();
+
+        // Polling interval to automatically update page when Security or Host changes status in database
+        const interval = setInterval(handleFlow, 2000);
+        return () => clearInterval(interval);
     }, [visitorId, actionParam]);
 
     // Security Check-In Action
