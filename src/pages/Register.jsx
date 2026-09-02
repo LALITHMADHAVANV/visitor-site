@@ -49,7 +49,7 @@ export default function Register({ isKiosk = false }) {
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData,
-                status: isKiosk ? 'registered' : 'checked-in', // Kiosk gives QR right away
+                status: isKiosk ? 'registered' : 'checked-in',
                 checkInTime: isKiosk ? null : new Date().toISOString(),
                 checkOutTime: null
             };
@@ -80,22 +80,22 @@ export default function Register({ isKiosk = false }) {
     };
 
     if (successQR) {
-        const qrUrl = `${window.location.origin}/mobile-action?id=${successQR}`;
+        const qrUrl = `${window.location.origin}/mobile-action?id=${successQR}&action=checkin`;
         
         return (
             <section className="view-section active">
                 <div className="glass-panel form-container" style={{ textAlign: 'center', padding: '64px 32px' }}>
                     <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '24px' }}></i>
                     <h2>Registration Successful!</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-                        Scan this code with your smartphone to control your check-in/out!
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                        Scan this <strong>Check-In QR Code</strong> at entry to check in.
                     </p>
                     
-                    <div style={{ background: 'white', padding: '24px', display: 'inline-block', borderRadius: '16px', marginBottom: '32px' }}>
-                        <QRCodeSVG value={qrUrl} size={256} />
+                    <div style={{ background: 'white', padding: '24px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
+                        <QRCodeSVG value={qrUrl} size={240} />
                     </div>
                     
-                    <p style={{ fontFamily: 'monospace', fontSize: '18px', color: 'var(--accent-primary)', marginBottom: '32px' }}>
+                    <p style={{ fontFamily: 'monospace', fontSize: '18px', color: 'var(--accent-primary)', marginBottom: '24px' }}>
                         {successQR}
                     </p>
 
@@ -170,7 +170,7 @@ export default function Register({ isKiosk = false }) {
                     
                     <div className="form-actions mt-4" style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                         <button type="button" className="btn btn-outline" onClick={() => navigate('/')}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Register & Check In</button>
+                        <button type="submit" className="btn btn-primary">Register & Get Check-In QR</button>
                     </div>
                 </form>
             </div>
