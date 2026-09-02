@@ -3,6 +3,7 @@ import Webcam from 'react-webcam';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { db, generateVisitorId } from '../db';
+import { supabase } from '../supabaseClient';
 import './Register.css';
 
 export default function Register({ isKiosk = false }) {
@@ -91,7 +92,7 @@ export default function Register({ isKiosk = false }) {
     const statusRef = useRef(visitorStatus);
     statusRef.current = visitorStatus;
 
-    // Auto-poll visitor status while QR is displayed on Kiosk
+    // Auto-poll & Realtime listener for visitor status while QR is displayed on Kiosk
     useEffect(() => {
         if (!successQR) return;
         
@@ -104,20 +105,43 @@ export default function Register({ isKiosk = false }) {
         const checkStatus = async () => {
             try {
                 const v = await db.visitors.get(successQR);
-                if (v && v.status && v.status !== statusRef.current) {
-                    console.log("Kiosk status updated from DB:", v.status);
-                    setVisitorStatus(v.status);
+                if (v && v.status) {
+                    const currentStat = v.status.trim();
+                    if (currentStat !== statusRef.current) {
+                        console.log("Kiosk status updated from DB:", currentStat);
+                        setVisitorStatus(currentStat);
+                    }
                 }
             } catch (err) {
                 console.error("Kiosk polling error:", err);
             }
         };
 
-        // Check immediately and then every 1.5 seconds
+        // 1. Initial check & fast interval polling
         checkStatus();
-        const interval = setInterval(checkStatus, 1500);
+        const interval = setInterval(checkStatus, 1000);
 
-        return () => clearInterval(interval);
+        // 2. Supabase Realtime WebSocket listener for instant push update
+        let channel;
+        try {
+            channel = supabase
+                .channel(`kiosk-visitor-${successQR}`)
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitors', filter: `id=eq.${successQR}` }, (payload) => {
+                    if (payload.new && payload.new.status) {
+                        const newStatus = payload.new.status.trim();
+                        console.log("Realtime status push received:", newStatus);
+                        setVisitorStatus(newStatus);
+                    }
+                })
+                .subscribe();
+        } catch (e) {
+            console.error("Realtime subscription error:", e);
+        }
+
+        return () => {
+            clearInterval(interval);
+            if (channel) supabase.removeChannel(channel);
+        };
     }, [successQR]);
 
     const handlePinVerifyOnKiosk = async (e) => {
