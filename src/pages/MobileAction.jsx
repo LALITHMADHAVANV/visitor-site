@@ -17,6 +17,9 @@ export default function MobileAction() {
     const [pinError, setPinError] = useState('');
     const [processing, setProcessing] = useState(false);
 
+    const statusRef = useRef(status);
+    statusRef.current = status;
+
     useEffect(() => {
         if (!visitorId) {
             setStatus('error');
@@ -35,44 +38,47 @@ export default function MobileAction() {
                 // 1. Security Exit Scan (`action=checkout`)
                 if (actionParam === 'checkout') {
                     if (v.status === 'checked-out') {
-                        setStatus('success-out');
+                        if (statusRef.current !== 'success-out') setStatus('success-out');
                     } else {
                         await db.visitors.update(v.id, {
                             status: 'checked-out',
                             checkOutTime: new Date().toISOString(),
                             auth_pin: null
                         });
-                        setStatus('success-out');
+                        if (statusRef.current !== 'success-out') setStatus('success-out');
                     }
                     return;
                 }
 
                 // 2. Entrance Scan (`action=checkin`)
                 if (actionParam === 'checkin' && (v.status === 'registered' || v.status === 'expected')) {
-                    setStatus('ready-checkin');
+                    if (statusRef.current !== 'ready-checkin') setStatus('ready-checkin');
                     return;
                 }
 
                 // 3. General Visitor Link Access (Visitor on their phone)
                 if (v.status === 'registered' || v.status === 'expected') {
-                    setStatus('ready-checkin');
+                    if (statusRef.current !== 'ready-checkin') setStatus('ready-checkin');
                 } else if (v.status === 'checked-in') {
-                    setStatus('enter-pin');
+                    // Only transition to enter-pin if we are not already showing exit-qr
+                    if (statusRef.current !== 'show-exit-qr' && statusRef.current !== 'enter-pin' && statusRef.current !== 'checkin-done') {
+                        setStatus('enter-pin');
+                    }
                 } else if (v.status === 'checked-out') {
-                    setStatus('success-out');
+                    if (statusRef.current !== 'success-out') setStatus('success-out');
                 } else {
-                    setStatus('error');
+                    if (statusRef.current !== 'error') setStatus('error');
                 }
             } catch (err) {
                 console.error("MobileAction Error:", err);
-                setStatus('error');
+                if (statusRef.current !== 'error') setStatus('error');
             }
         };
 
         handleFlow();
 
         // Polling interval to automatically update page when Security or Host changes status in database
-        const interval = setInterval(handleFlow, 2000);
+        const interval = setInterval(handleFlow, 1500);
         return () => clearInterval(interval);
     }, [visitorId, actionParam]);
 

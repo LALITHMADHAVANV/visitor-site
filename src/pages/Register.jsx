@@ -84,23 +84,31 @@ export default function Register({ isKiosk = false }) {
     const [pinError, setPinError] = useState('');
     const [unlockedExitQR, setUnlockedExitQR] = useState(false);
 
+    const statusRef = useRef(visitorStatus);
+    statusRef.current = visitorStatus;
+
     // Auto-poll visitor status while QR is displayed on Kiosk
     useEffect(() => {
         if (!successQR) return;
         
-        const interval = setInterval(async () => {
+        const checkStatus = async () => {
             try {
                 const v = await db.visitors.get(successQR);
-                if (v && v.status !== visitorStatus) {
+                if (v && v.status && v.status !== statusRef.current) {
+                    console.log("Kiosk status updated from DB:", v.status);
                     setVisitorStatus(v.status);
                 }
             } catch (err) {
-                console.error("Polling error:", err);
+                console.error("Kiosk polling error:", err);
             }
-        }, 2000);
+        };
+
+        // Check immediately and then every 1.5 seconds
+        checkStatus();
+        const interval = setInterval(checkStatus, 1500);
 
         return () => clearInterval(interval);
-    }, [successQR, visitorStatus]);
+    }, [successQR]);
 
     const handlePinVerifyOnKiosk = async (e) => {
         e.preventDefault();
