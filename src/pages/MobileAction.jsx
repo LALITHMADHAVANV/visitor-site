@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { db } from '../db';
@@ -11,14 +11,24 @@ export default function MobileAction() {
     const actionParam = searchParams.get('action');
     
     const [visitor, setVisitor] = useState(null);
-    const [status, setStatus] = useState('loading'); // loading, ready-checkin, checkin-done, enter-pin, show-exit-qr, success-out, error
+    // Statuses: loading, enter-pin, show-exit-qr, security-exit-success, security-exit-invalid, error
+    const [status, setStatus] = useState('loading');
     
     const [enteredPin, setEnteredPin] = useState('');
     const [pinError, setPinError] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [checkoutTimeDisplay, setCheckoutTimeDisplay] = useState('');
 
     const statusRef = useRef(status);
     statusRef.current = status;
+
+    const getCleanOrigin = () => {
+        const origin = window.location.origin;
+        if (origin.includes('.vercel.app') && origin.includes('-')) {
+            return 'https://visitor-site-seven.vercel.app';
+        }
+        return origin;
+    };
 
     useEffect(() => {
         if (!visitorId) {
@@ -30,50 +40,71 @@ export default function MobileAction() {
             try {
                 const v = await db.visitors.get(visitorId);
                 if (!v) {
-                    setStatus('error');
+                    if (statusRef.current !== 'error') setStatus('error');
                     return;
                 }
                 setVisitor(v);
 
-                // 1. Security Exit Scan (`action=checkout`)
+                // --- 1. SECURITY EXIT SCAN (action=checkout) ---
                 if (actionParam === 'checkout') {
                     if (v.status === 'checked-out') {
-                        if (statusRef.current !== 'success-out') setStatus('success-out');
-                    } else {
+                        // Re-scanning used pass -> Invalid/Already Used
+                        if (statusRef.current !== 'security-exit-invalid') {
+                            setStatus('security-exit-invalid');
+                        }
+                    } else if (v.status === 'checked-in') {
+                        // Valid exit scan by Security
+                        const now = new Date();
+                        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        
                         await db.visitors.update(v.id, {
                             status: 'checked-out',
-                            checkOutTime: new Date().toISOString(),
+                            checkOutTime: now.toISOString(),
                             auth_pin: null
                         });
-                        if (statusRef.current !== 'success-out') setStatus('success-out');
+                        
+                        setCheckoutTimeDisplay(timeString);
+                        if (statusRef.current !== 'security-exit-success') {
+                            setStatus('security-exit-success');
+                        }
+                    } else {
+                        if (statusRef.current !== 'security-exit-invalid') {
+                            setStatus('security-exit-invalid');
+                        }
                     }
                     return;
                 }
 
-                // 2. Visitor scans Check-In QR on their own phone
+                // --- 2. VISITOR CHECK-IN SCAN (action=checkin or default) ---
                 if (v.status === 'registered' || v.status === 'expected') {
-                    // Generate PIN for Host
-                    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+                    // Auto Check-In Immediately
+                    let pin = v.auth_pin;
+                    if (!pin) {
+                        pin = Math.floor(1000 + Math.random() * 9000).toString();
+                        await db.visitors.update(v.id, {
+                            status: 'checked-in',
+                            checkInTime: new Date().toISOString(),
+                            auth_pin: pin
+                        });
+                        // Send Telegram PIN to Host (only once)
+                        await sendTelegramMessage(v.name, v.hostName, pin);
+                    }
                     
-                    await db.visitors.update(v.id, {
-                        status: 'checked-in',
-                        checkInTime: new Date().toISOString(),
-                        auth_pin: pin
-                    });
-
-                    // Send Telegram PIN to Host
-                    await sendTelegramMessage(v.name, v.hostName, pin);
-
                     v.status = 'checked-in';
                     v.auth_pin = pin;
                     setVisitor(v);
-                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
+                    
+                    if (statusRef.current !== 'show-exit-qr' && statusRef.current !== 'enter-pin') {
+                        setStatus('enter-pin');
+                    }
                 } else if (v.status === 'checked-in') {
-                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
+                    if (statusRef.current !== 'show-exit-qr' && statusRef.current !== 'enter-pin') {
+                        setStatus('enter-pin');
+                    }
                 } else if (v.status === 'checked-out') {
-                    if (statusRef.current !== 'success-out') setStatus('success-out');
-                } else {
-                    if (statusRef.current !== 'error') setStatus('error');
+                    if (statusRef.current !== 'security-exit-invalid') {
+                        setStatus('security-exit-invalid');
+                    }
                 }
             } catch (err) {
                 console.error("MobileAction Error:", err);
@@ -83,45 +114,19 @@ export default function MobileAction() {
 
         handleFlow();
 
-        // Polling interval to automatically update page instantly when status changes
-        const interval = setInterval(handleFlow, 100);
+        const interval = setInterval(handleFlow, 1000);
         return () => clearInterval(interval);
     }, [visitorId, actionParam]);
 
-    // Security Check-In Action
-    const handleConfirmCheckIn = async () => {
-        if (!visitor) return;
-        setProcessing(true);
-        try {
-            // Generate 4-digit Host PIN
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            await db.visitors.update(visitor.id, {
-                status: 'checked-in',
-                checkInTime: new Date().toISOString(),
-                auth_pin: pin
-            });
-
-            // Dispatch Telegram message to Host
-            await sendTelegramMessage(visitor.name, visitor.hostName, pin);
-            
-            setVisitor(prev => ({ ...prev, status: 'checked-in', auth_pin: pin }));
-            setStatus('checkin-done');
-        } catch (err) {
-            console.error("Check-in error:", err);
-            setStatus('error');
-        } finally {
-            setProcessing(false);
-        }
-    };
-
-    // Visitor PIN Verification Action (On Visitor's Phone)
+    // Visitor PIN Verification Action
     const handlePinVerification = async (e) => {
         e.preventDefault();
         setPinError('');
         
-        if (!enteredPin) {
-            setPinError('Please enter the 4-digit PIN from your host.');
+        const cleanPin = enteredPin.trim();
+
+        if (cleanPin.length !== 4) {
+            setPinError('Please enter a 4-digit numeric PIN.');
             return;
         }
 
@@ -129,11 +134,11 @@ export default function MobileAction() {
         try {
             const v = await db.visitors.get(visitorId);
             
-            if (v && v.auth_pin === enteredPin) {
-                // PIN verified! Show Exit QR Code
+            if (v && v.auth_pin === cleanPin) {
+                // Correct PIN -> Unlock Exit Pass
                 setStatus('show-exit-qr');
             } else {
-                setPinError('Invalid PIN. Please ask your host for the 4-digit code sent to their Telegram.');
+                setPinError('Invalid PIN. Please enter the 4-digit code sent to your host.');
             }
         } catch (error) {
             console.error("PIN Verification Error:", error);
@@ -143,111 +148,140 @@ export default function MobileAction() {
         }
     };
 
-    if (status === 'loading') return <div style={{padding: '32px', textAlign: 'center', color: 'white'}}>Loading Visitor Info...</div>;
-    if (status === 'error') return <div style={{padding: '32px', textAlign: 'center', color: 'var(--danger)'}}><h2>Invalid or Pass Expired</h2></div>;
+    if (status === 'loading') {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)', color: 'white' }}>
+                Loading...
+            </div>
+        );
+    }
 
-    return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
-            <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
-                <i className="fa-solid fa-id-card" style={{ fontSize: '48px', color: 'var(--accent-primary)', marginBottom: '16px' }}></i>
-                <h2 style={{ marginBottom: '4px' }}>Visitor Pass</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>Visitor Management Portal</p>
-                
-                {/* Visitor Info Summary */}
-                {visitor && (
-                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', marginBottom: '24px', textAlign: 'left' }}>
-                        <p style={{ margin: '4px 0', color: 'white' }}><strong>Visitor:</strong> {visitor.name}</p>
-                        <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}><strong>Host:</strong> {visitor.hostName}</p>
-                        <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}><strong>Purpose:</strong> {visitor.purpose}</p>
-                        <p style={{ margin: '4px 0', color: 'var(--text-secondary)', fontFamily: 'monospace' }}><strong>ID:</strong> {visitor.id}</p>
+    if (status === 'error') {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center' }}>
+                    <i className="fa-solid fa-triangle-exclamation text-danger" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
+                    <h2 style={{ color: 'var(--danger)', marginBottom: '8px' }}>Invalid QR Token</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>This pass link is invalid or expired.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // --- SECURITY SCREEN: INVALID EXIT PASS ---
+    if (status === 'security-exit-invalid') {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                    <i className="fa-solid fa-circle-xmark text-danger" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
+                    <h2 style={{ color: 'var(--danger)', marginBottom: '8px' }}>INVALID EXIT PASS</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>
+                        This exit pass has already been used or is not authorized.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // --- SECURITY SCREEN: EXIT VERIFIED ---
+    if (status === 'security-exit-success') {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center', border: '1px solid rgba(34, 197, 94, 0.4)' }}>
+                    <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
+                    <h2 style={{ color: 'var(--success)', marginBottom: '8px' }}>EXIT VERIFIED</h2>
+                    
+                    <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', margin: '20px 0', textAlign: 'left' }}>
+                        <p style={{ margin: '4px 0', color: 'white' }}><strong>Visitor:</strong> {visitor?.name}</p>
+                        <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}><strong>Host:</strong> {visitor?.hostName}</p>
+                        <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}><strong>Checkout Time:</strong> {checkoutTimeDisplay || 'Just now'}</p>
+                        <p style={{ margin: '8px 0 0 0', color: 'var(--success)', fontWeight: 'bold' }}>Status: Checked Out Successfully</p>
                     </div>
-                )}
+                </div>
+            </div>
+        );
+    }
 
-                {/* State 1: Security Entrance Scan (Security Clicks Check In) */}
-                {status === 'ready-checkin' && (
-                    <div>
-                        <button 
-                            className="btn btn-primary w-100" 
-                            style={{ padding: '16px', fontSize: '18px' }}
-                            onClick={handleConfirmCheckIn}
-                            disabled={processing}
-                        >
-                            {processing ? 'Processing...' : 'Confirm Entrance Check In'}
-                        </button>
+    // --- VISITOR SCREEN: SCREEN 1 & 2 (AUTO CHECK-IN & PIN ENTRY) ---
+    if (status === 'enter-pin') {
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center' }}>
+                    {/* Screen 1 Indicator */}
+                    <div style={{ marginBottom: '24px', background: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '24px', verticalAlign: 'middle', marginRight: '8px' }}></i>
+                        <span style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '16px' }}>Check-In Successful ✓</span>
                     </div>
-                )}
 
-                {/* State 2: Security Entrance Scan Complete */}
-                {status === 'checkin-done' && (
-                    <div>
-                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                            Visitor is checked in. Telegram PIN sent to <strong>{visitor?.hostName}</strong>.
-                        </p>
-                    </div>
-                )}
+                    {/* Screen 2: PIN Entry */}
+                    <h2 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+                        Enter the 4-digit PIN sent to your host
+                    </p>
 
-                {/* State 3: Visitor Enters Host PIN on Visitor Phone */}
-                {status === 'enter-pin' && (
-                    <div>
-                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            A 4-digit PIN was sent to <strong>{visitor?.hostName}</strong> via Telegram. Enter it below to unlock your <strong>Exit QR Code</strong>:
-                        </p>
-
-                        <form onSubmit={handlePinVerification}>
-                            {pinError && <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '14px' }}>{pinError}</div>}
-                            
-                            <div className="form-group" style={{ marginBottom: '20px' }}>
-                                <input 
-                                    type="text" 
-                                    required 
-                                    value={enteredPin}
-                                    onChange={(e) => setEnteredPin(e.target.value)}
-                                    placeholder="Enter 4-digit PIN"
-                                    style={{ fontSize: '24px', textAlign: 'center', letterSpacing: '8px', width: '100%' }}
-                                    maxLength={4}
-                                    className="form-control"
-                                />
+                    <form onSubmit={handlePinVerification}>
+                        {pinError && (
+                            <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '14px' }}>
+                                {pinError}
                             </div>
-
-                            <button type="submit" className="btn btn-primary w-100" style={{ padding: '14px', fontSize: '16px' }} disabled={processing}>
-                                {processing ? 'Verifying...' : 'Verify & Unlock Exit QR'}
-                            </button>
-                        </form>
-                    </div>
-                )}
-
-
-                {/* State 4: Display Exit QR Code (Visitor Shows to Security at Exit) */}
-                {status === 'show-exit-qr' && (
-                    <div>
-                        <i className="fa-solid fa-lock-open text-primary" style={{ fontSize: '48px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Check-Out Exit Pass</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            Present this <strong>Exit QR Code</strong> to Security at the gate to check out:
-                        </p>
+                        )}
                         
-                        <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
-                            <QRCodeSVG value={`${(window.location.origin.includes('.vercel.app') && window.location.origin.includes('-')) ? 'https://visitor-site-seven.vercel.app' : window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} size={220} />
+                        <div className="form-group" style={{ marginBottom: '24px' }}>
+                            <input 
+                                type="tel"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                required 
+                                value={enteredPin}
+                                onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="· · · ·"
+                                style={{ fontSize: '32px', textAlign: 'center', letterSpacing: '12px', width: '100%', padding: '12px' }}
+                                maxLength={4}
+                                className="form-control"
+                                autoFocus
+                            />
                         </div>
 
-                        <p style={{ color: 'var(--success)', fontSize: '14px', fontWeight: 'bold' }}>
-                            ✓ Host PIN Verified
-                        </p>
-                    </div>
-                )}
-
-                {/* State 5: Security Scanned Exit QR Code (Checked Out) */}
-                {status === 'success-out' && (
-                    <div>
-                        <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'var(--accent-primary)', marginBottom: '8px' }}>Checked Out Successfully!</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Thank you for visiting. Have a safe trip!</p>
-                    </div>
-                )}
+                        <button type="submit" className="btn btn-primary w-100" style={{ padding: '16px', fontSize: '16px' }} disabled={processing}>
+                            {processing ? 'Validating...' : 'Unlock Exit Pass'}
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
+
+    // --- VISITOR SCREEN: SCREEN 3 (EXIT PASS UNLOCKED) ---
+    if (status === 'show-exit-qr') {
+        const cleanOrigin = getCleanOrigin();
+        const exitQrUrl = `${cleanOrigin}/mobile-action?id=${visitorId}&action=checkout`;
+
+        return (
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+                <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center' }}>
+                    <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '10px 16px', borderRadius: '20px', display: 'inline-block', marginBottom: '20px' }}>
+                        <span style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '14px' }}>Exit Pass Unlocked ✓</span>
+                    </div>
+
+                    <h2 style={{ color: 'white', marginBottom: '4px' }}>EXIT PASS</h2>
+                    
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
+                        <p style={{ margin: '2px 0' }}>Visitor: <strong>{visitor?.name}</strong></p>
+                        <p style={{ margin: '2px 0' }}>Host: <strong>{visitor?.hostName}</strong></p>
+                        <p style={{ margin: '2px 0', color: 'var(--success)' }}>Status: <strong>Exit Pass Unlocked</strong></p>
+                    </div>
+
+                    <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '20px' }}>
+                        <QRCodeSVG value={exitQrUrl} size={220} />
+                    </div>
+
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>
+                        Show this QR code to Security when leaving the building.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return null;
 }
