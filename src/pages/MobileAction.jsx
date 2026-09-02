@@ -50,20 +50,26 @@ export default function MobileAction() {
                     return;
                 }
 
-                // 2. Entrance Scan (`action=checkin`)
-                if (actionParam === 'checkin' && (v.status === 'registered' || v.status === 'expected')) {
-                    if (statusRef.current !== 'ready-checkin') setStatus('ready-checkin');
-                    return;
-                }
-
-                // 3. General Visitor Link Access (Visitor on their phone)
+                // 2. Visitor scans Check-In QR on their own phone
                 if (v.status === 'registered' || v.status === 'expected') {
-                    if (statusRef.current !== 'ready-checkin') setStatus('ready-checkin');
+                    // Generate PIN for Host
+                    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+                    
+                    await db.visitors.update(v.id, {
+                        status: 'checked-in',
+                        checkInTime: new Date().toISOString(),
+                        auth_pin: pin
+                    });
+
+                    // Send Telegram PIN to Host
+                    await sendTelegramMessage(v.name, v.hostName, pin);
+
+                    v.status = 'checked-in';
+                    v.auth_pin = pin;
+                    setVisitor(v);
+                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
                 } else if (v.status === 'checked-in') {
-                    // Only transition to enter-pin if we are not already showing exit-qr
-                    if (statusRef.current !== 'show-exit-qr' && statusRef.current !== 'enter-pin' && statusRef.current !== 'checkin-done') {
-                        setStatus('enter-pin');
-                    }
+                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
                 } else if (v.status === 'checked-out') {
                     if (statusRef.current !== 'success-out') setStatus('success-out');
                 } else {
