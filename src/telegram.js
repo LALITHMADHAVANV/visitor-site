@@ -2,7 +2,7 @@ export const sendTelegramMessage = async (visitorName, hostName, pin) => {
     const token = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
     const defaultChatId = import.meta.env.VITE_TELEGRAM_CHAT_ID; // Fallback chat ID
 
-    const message = `🔔 *New Visitor Arrival*\n\n*${visitorName}* is here to see *${hostName}*.\n\nTo approve this visit, please share this PIN with them:\n🎯 *${pin}*`;
+    const message = `🔔 *Visitor Check-Out Request*\n\n*${visitorName}* is trying to check out after visiting *${hostName}*.\n\nTo approve their checkout, please share this PIN with them:\n🎯 *${pin}*`;
 
     if (!token || !defaultChatId) {
         console.warn("Telegram credentials not configured in .env. Logging message instead:");

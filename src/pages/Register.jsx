@@ -3,7 +3,6 @@ import Webcam from 'react-webcam';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { db, generateVisitorId } from '../db';
-import { sendTelegramMessage } from '../telegram';
 import './Register.css';
 
 export default function Register({ isKiosk = false }) {
@@ -13,10 +12,6 @@ export default function Register({ isKiosk = false }) {
     
     const [photoData, setPhotoData] = useState(null);
     const [successQR, setSuccessQR] = useState(null);
-    const [waitingForPin, setWaitingForPin] = useState(false);
-    const [currentVisitorId, setCurrentVisitorId] = useState(null);
-    const [enteredPin, setEnteredPin] = useState('');
-    const [pinError, setPinError] = useState('');
 
     const [formData, setFormData] = useState({
         name: location.state?.preregData?.name || '',
@@ -45,7 +40,6 @@ export default function Register({ isKiosk = false }) {
         
         try {
             const visitorId = await generateVisitorId();
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
             
             const visitor = {
                 id: visitorId,
@@ -55,8 +49,7 @@ export default function Register({ isKiosk = false }) {
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData,
-                status: isKiosk ? 'pending' : 'checked-in', // Kiosk flow waits for PIN
-                auth_pin: pin,
+                status: isKiosk ? 'registered' : 'checked-in', // Kiosk gives QR right away
                 checkInTime: isKiosk ? null : new Date().toISOString(),
                 checkOutTime: null
             };
@@ -68,11 +61,7 @@ export default function Register({ isKiosk = false }) {
             }
             
             if (isKiosk) {
-                // Send telegram message to host
-                await sendTelegramMessage(visitor.name, visitor.hostName, pin);
-                
-                setCurrentVisitorId(visitorId);
-                setWaitingForPin(true);
+                setSuccessQR(visitorId);
             } else {
                 alert(`Visitor Registered Successfully!\nVisitor ID: ${visitorId}`);
                 navigate('/dashboard');
@@ -84,36 +73,8 @@ export default function Register({ isKiosk = false }) {
         }
     };
 
-    const handlePinVerification = async (e) => {
-        e.preventDefault();
-        setPinError('');
-        
-        try {
-            const visitor = await db.visitors.get(currentVisitorId);
-            
-            if (visitor && visitor.auth_pin === enteredPin) {
-                // Pin matches! Check them in.
-                await db.visitors.update(currentVisitorId, {
-                    status: 'registered',
-                    auth_pin: null // clear pin for security
-                });
-                
-                setWaitingForPin(false);
-                setSuccessQR(currentVisitorId);
-            } else {
-                setPinError('Invalid PIN. Please ask your host for the correct 4-digit code.');
-            }
-        } catch (error) {
-            console.error("PIN Verification Error:", error);
-            setPinError('Error verifying PIN.');
-        }
-    };
-
     const handleNextVisitor = () => {
         setSuccessQR(null);
-        setWaitingForPin(false);
-        setCurrentVisitorId(null);
-        setEnteredPin('');
         setFormData({ name: '', phone: '', company: '', hostName: '', purpose: '' });
         setPhotoData(null);
     };
@@ -143,44 +104,6 @@ export default function Register({ isKiosk = false }) {
                             Done / Next Visitor
                         </button>
                     </div>
-                </div>
-            </section>
-        );
-    }
-
-    if (waitingForPin) {
-        return (
-            <section className="view-section active">
-                <div className="glass-panel form-container" style={{ textAlign: 'center', padding: '64px 32px', maxWidth: '500px' }}>
-                    <i className="fa-brands fa-telegram text-primary" style={{ fontSize: '64px', marginBottom: '24px' }}></i>
-                    <h2>Host Approval Required</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', marginTop: '16px' }}>
-                        We have notified <strong>{formData.hostName}</strong> of your arrival. Please ask them for the 4-digit PIN to complete your registration.
-                    </p>
-                    
-                    <form onSubmit={handlePinVerification}>
-                        {pinError && <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px' }}>{pinError}</div>}
-                        
-                        <div className="form-group" style={{ marginBottom: '24px' }}>
-                            <input 
-                                type="text" 
-                                required 
-                                value={enteredPin}
-                                onChange={(e) => setEnteredPin(e.target.value)}
-                                placeholder="Enter 4-digit PIN"
-                                style={{ fontSize: '24px', textAlign: 'center', letterSpacing: '8px' }}
-                                maxLength={4}
-                                className="form-control"
-                            />
-                        </div>
-
-                        <button type="submit" className="btn btn-primary w-100" style={{ padding: '16px', fontSize: '18px' }}>
-                            Verify & Complete
-                        </button>
-                        <button type="button" className="btn btn-outline w-100" style={{ marginTop: '16px' }} onClick={handleNextVisitor}>
-                            Cancel Registration
-                        </button>
-                    </form>
                 </div>
             </section>
         );
@@ -247,7 +170,7 @@ export default function Register({ isKiosk = false }) {
                     
                     <div className="form-actions mt-4" style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                         <button type="button" className="btn btn-outline" onClick={() => navigate('/')}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Request Host Approval</button>
+                        <button type="submit" className="btn btn-primary">Register & Check In</button>
                     </div>
                 </form>
             </div>
