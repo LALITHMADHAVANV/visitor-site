@@ -75,6 +75,10 @@ export default function Register({ isKiosk = false }) {
 
     const handleNextVisitor = () => {
         setSuccessQR(null);
+        setVisitorStatus('registered');
+        setUnlockedExitQR(false);
+        setEnteredPin('');
+        setPinError('');
         setFormData({ name: '', phone: '', company: '', hostName: '', purpose: '' });
         setPhotoData(null);
     };
@@ -91,6 +95,12 @@ export default function Register({ isKiosk = false }) {
     useEffect(() => {
         if (!successQR) return;
         
+        // Reset state for new visitor QR display
+        setVisitorStatus('registered');
+        setUnlockedExitQR(false);
+        setEnteredPin('');
+        setPinError('');
+
         const checkStatus = async () => {
             try {
                 const v = await db.visitors.get(successQR);
