@@ -283,5 +283,48 @@ export default function MobileAction() {
         );
     }
 
-    return null;
+    // Fallback: Default to PIN entry screen for any checked-in visitor
+    return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+            <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '32px', textAlign: 'center' }}>
+                <div style={{ marginBottom: '24px', background: 'rgba(34, 197, 94, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                    <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '24px', verticalAlign: 'middle', marginRight: '8px' }}></i>
+                    <span style={{ color: 'var(--success)', fontWeight: 'bold', fontSize: '16px' }}>Check-In Successful ✓</span>
+                </div>
+
+                <h2 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+                    Enter the 4-digit PIN sent to your host
+                </p>
+
+                <form onSubmit={handlePinVerification}>
+                    {pinError && (
+                        <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '14px' }}>
+                            {pinError}
+                        </div>
+                    )}
+                    
+                    <div className="form-group" style={{ marginBottom: '24px' }}>
+                        <input 
+                            type="tel"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            required 
+                            value={enteredPin}
+                            onChange={(e) => setEnteredPin(e.target.value.replace(/\D/g, ''))}
+                            placeholder="· · · ·"
+                            style={{ fontSize: '32px', textAlign: 'center', letterSpacing: '12px', width: '100%', padding: '12px' }}
+                            maxLength={4}
+                            className="form-control"
+                            autoFocus
+                        />
+                    </div>
+
+                    <button type="submit" className="btn btn-primary w-100" style={{ padding: '16px', fontSize: '16px' }} disabled={processing}>
+                        {processing ? 'Validating...' : 'Unlock Exit Pass'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
 }
