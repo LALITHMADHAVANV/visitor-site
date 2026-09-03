@@ -16,6 +16,7 @@ export default function MobileAction() {
 
     const statusRef = useRef(status);
     statusRef.current = status;
+    const isProcessingCheckIn = useRef(false);
 
     useEffect(() => {
         if (!visitorId) {
@@ -47,8 +48,10 @@ export default function MobileAction() {
                     return;
                 }
 
-                // 2. Visitor scans Check-In QR on mobile
-                if (v.status === 'registered' || v.status === 'expected') {
+                // 2. Visitor scans Check-In QR on mobile (Trigger single Telegram message)
+                if ((v.status === 'registered' || v.status === 'expected') && !isProcessingCheckIn.current) {
+                    isProcessingCheckIn.current = true;
+                    
                     // Generate PIN for Host
                     const pin = Math.floor(1000 + Math.random() * 9000).toString();
                     
@@ -69,7 +72,7 @@ export default function MobileAction() {
                     if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-out') {
                     if (statusRef.current !== 'success-out') setStatus('success-out');
-                } else {
+                } else if (v.status !== 'registered' && v.status !== 'expected') {
                     if (statusRef.current !== 'error') setStatus('error');
                 }
             } catch (err) {
@@ -80,8 +83,8 @@ export default function MobileAction() {
 
         handleFlow();
 
-        // Polling interval to automatically update page instantly when status changes
-        const interval = setInterval(handleFlow, 100);
+        // Polling interval to automatically update page when status changes
+        const interval = setInterval(handleFlow, 1500);
         return () => clearInterval(interval);
     }, [visitorId, actionParam]);
 

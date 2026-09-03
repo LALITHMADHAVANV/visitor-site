@@ -5,7 +5,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
 import { supabase } from '../supabaseClient';
-import { sendTelegramMessage } from '../telegram';
 import Badge from '../components/Badge';
 import './Register.css';
 
@@ -55,9 +54,6 @@ export default function Register({ isKiosk = false }) {
         try {
             const visitorId = await generateVisitorId();
             
-            // Generate 4-digit PIN for host verification
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
-            
             const visitor = {
                 id: visitorId,
                 name: formData.name.trim(),
@@ -66,16 +62,13 @@ export default function Register({ isKiosk = false }) {
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData,
-                status: isKiosk ? 'registered' : 'checked-in',
-                checkInTime: isKiosk ? null : new Date().toISOString(),
+                status: 'registered',
+                checkInTime: null,
                 checkOutTime: null,
-                auth_pin: pin
+                auth_pin: null
             };
             
             await db.visitors.add(visitor);
-            
-            // Send Telegram PIN alert to host
-            await sendTelegramMessage(visitor.name, visitor.hostName, pin);
             
             if (location.state?.preregData?.id) {
                 await db.preregistered.update(location.state.preregData.id, { status: 'arrived' });
@@ -258,35 +251,33 @@ export default function Register({ isKiosk = false }) {
                         </div>
                     </div>
 
-                    {/* Telegram Host PIN Alert Notice */}
-                    {registeredVisitor.auth_pin && (
-                        <div style={{ 
-                            background: 'rgba(16, 185, 129, 0.1)', 
-                            border: '1px solid rgba(16, 185, 129, 0.2)', 
-                            borderRadius: '12px', 
-                            padding: '14px 18px', 
-                            marginBottom: '24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                        }}>
-                            <div>
-                                <div style={{ color: 'var(--success)', fontWeight: '600', fontSize: '14px', marginBottom: '2px' }}>
-                                    <i className="fa-brands fa-telegram" style={{ marginRight: '8px', fontSize: '16px' }}></i>
-                                    Telegram Alert Sent to Host
-                                </div>
-                                <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-                                    Host ({registeredVisitor.hostName}) was notified
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Host PIN</div>
-                                <div style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '18px', color: 'white', letterSpacing: '2px' }}>
-                                    {registeredVisitor.auth_pin}
-                                </div>
-                            </div>
+                    {/* Check-In QR Code for Visitor to Scan */}
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                        <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px' }}>
+                            <QRCodeSVG value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} size={160} />
                         </div>
-                    )}
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '8px' }}>
+                            Scan QR with mobile camera to check in
+                        </p>
+                    </div>
+
+                    {/* Telegram Host PIN Alert Notice */}
+                    <div style={{ 
+                        background: 'rgba(59, 130, 246, 0.08)', 
+                        border: '1px solid rgba(59, 130, 246, 0.2)', 
+                        borderRadius: '12px', 
+                        padding: '14px 18px', 
+                        marginBottom: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        textAlign: 'left'
+                    }}>
+                        <i className="fa-brands fa-telegram" style={{ color: 'var(--accent-primary)', fontSize: '24px' }}></i>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                            Host PIN will be sent to <strong>{registeredVisitor.hostName}</strong> via Telegram upon scanning the Check-In QR.
+                        </div>
+                    </div>
 
                     {/* Action Buttons */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
