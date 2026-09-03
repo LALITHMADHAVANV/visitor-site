@@ -1,17 +1,20 @@
-import React, { useRef, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
+import { supabase } from '../supabaseClient';
 import Badge from '../components/Badge';
 import './Dashboard.css';
 
 export default function Dashboard() {
     const badgeRef = useRef();
     const [selectedVisitor, setSelectedVisitor] = useState(null);
+    const [allVisitors, setAllVisitors] = useState([]);
+    const [preregisteredList, setPreregisteredList] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const handlePrint = useReactToPrint({
-        content: () => badgeRef.current,
-        documentTitle: 'Visitor_Badge',
+        contentRef: badgeRef,
+        documentTitle: selectedVisitor ? `Visitor_Badge_${selectedVisitor.id}` : 'Visitor_Badge',
     });
 
     const printBadge = (visitor) => {
@@ -19,42 +22,77 @@ export default function Dashboard() {
         setTimeout(() => handlePrint(), 100);
     };
 
-    // useLiveQuery automatically updates when Dexie data changes
-    const todayVisitors = useLiveQuery(async () => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        return await db.visitors.filter(v => {
-            const checkInDate = new Date(v.checkInTime);
-            return checkInDate >= today && checkInDate < tomorrow;
-        }).toArray();
-    }, []) || [];
+    const fetchDashboardData = useCallback(async () => {
+        try {
+            const [visitorsData, preregData] = await Promise.all([
+                db.visitors.toArray(),
+                db.preregistered.toArray()
+            ]);
+            setAllVisitors(visitorsData || []);
+            setPreregisteredList(preregData || []);
+        } catch (error) {
+            console.error("Error loading dashboard data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    const insideVisitors = useLiveQuery(
-        () => db.visitors.where('status').equals('checked-in').toArray(),
-        []
-    ) || [];
+    useEffect(() => {
+        fetchDashboardData();
 
-    const expectedToday = useLiveQuery(async () => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        return await db.preregistered.filter(p => {
-            const pDate = new Date(p.expectedDate);
-            return pDate >= today && pDate < tomorrow && p.status === 'expected';
-        }).toArray();
-    }, []) || [];
+        // Supabase Realtime updates
+        let channel;
+        try {
+            channel = supabase
+                .channel('dashboard-realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'visitors' }, () => {
+                    fetchDashboardData();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'preregistered' }, () => {
+                    fetchDashboardData();
+                })
+                .subscribe();
+        } catch (e) {
+            console.error("Realtime subscription error on dashboard:", e);
+        }
+
+        // Periodic refresh every 3 seconds for live dashboard
+        const interval = setInterval(fetchDashboardData, 3000);
+
+        return () => {
+            clearInterval(interval);
+            if (channel) supabase.removeChannel(channel);
+        };
+    }, [fetchDashboardData]);
+
+    // Computed Stats
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayVisitors = allVisitors.filter(v => {
+        const time = v.checkInTime || v.created_at;
+        if (!time) return false;
+        const d = new Date(time);
+        return d >= today && d < tomorrow;
+    });
+
+    const insideVisitors = allVisitors.filter(v => v.status === 'checked-in');
+
+    const expectedToday = preregisteredList.filter(p => {
+        if (!p.expectedDate) return false;
+        const pDate = new Date(p.expectedDate);
+        return pDate >= today && pDate < tomorrow && p.status === 'expected';
+    });
 
     const handleCheckout = async (id) => {
-        if(window.confirm(`Are you sure you want to check out visitor ${id}?`)) {
+        if (window.confirm(`Are you sure you want to check out visitor ${id}?`)) {
             await db.visitors.update(id, {
                 status: 'checked-out',
                 checkOutTime: new Date().toISOString()
             });
+            fetchDashboardData();
         }
     };
 

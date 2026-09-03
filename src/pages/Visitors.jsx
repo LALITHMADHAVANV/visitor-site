@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../AuthContext';
@@ -8,9 +7,22 @@ export default function Visitors() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterDate, setFilterDate] = useState('');
+    const [visitors, setVisitors] = useState([]);
     const { user } = useAuth();
 
-    const visitors = useLiveQuery(() => db.visitors.toArray(), []) || [];
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await db.visitors.toArray();
+                setVisitors(data || []);
+            } catch (err) {
+                console.error("Error loading visitors:", err);
+            }
+        };
+        load();
+        const interval = setInterval(load, 4000);
+        return () => clearInterval(interval);
+    }, []);
 
     const filteredVisitors = visitors.filter(v => {
         const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
