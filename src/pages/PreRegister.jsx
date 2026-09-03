@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,13 +10,26 @@ export default function PreRegister() {
         expectedDate: '',
         purpose: ''
     });
+    const [preregisteredList, setPreregisteredList] = useState([]);
     
     const navigate = useNavigate();
 
-    const preregistered = useLiveQuery(
-        () => db.preregistered.where('status').equals('expected').toArray(),
-        []
-    ) || [];
+    const fetchPreregistered = async () => {
+        try {
+            const data = await db.preregistered.toArray();
+            setPreregisteredList(data || []);
+        } catch (error) {
+            console.error("Error loading preregistered visitors:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchPreregistered();
+        const interval = setInterval(fetchPreregistered, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const preregistered = preregisteredList.filter(p => p.status === 'expected');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -34,6 +46,7 @@ export default function PreRegister() {
             });
             
             setFormData({ name: '', company: '', hostName: '', expectedDate: '', purpose: '' });
+            await fetchPreregistered();
             alert("Visitor pre-registered successfully!");
         } catch (error) {
             console.error("Error pre-registering:", error);
@@ -67,6 +80,7 @@ export default function PreRegister() {
                         <table className="data-table">
                             <thead>
                                 <tr>
+                                    <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
                                     <th>Name</th>
                                     <th>Date</th>
                                     <th>Host</th>
@@ -76,13 +90,16 @@ export default function PreRegister() {
                             <tbody>
                                 {preregistered.length === 0 ? (
                                     <tr>
-                                        <td colSpan="4">
+                                        <td colSpan="5">
                                             <div className="empty-state">No expected visitors.</div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    preregistered.map(p => (
+                                    preregistered.map((p, index) => (
                                         <tr key={p.id}>
+                                            <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                                                {index + 1}
+                                            </td>
                                             <td><strong>{p.name}</strong><br/><span style={{fontSize:'12px', color:'var(--text-secondary)'}}>{p.company || '-'}</span></td>
                                             <td>{formatTime(p.expectedDate)}</td>
                                             <td>{p.hostName}</td>
