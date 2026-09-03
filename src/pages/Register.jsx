@@ -2,17 +2,28 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
 import { supabase } from '../supabaseClient';
+import { sendTelegramMessage } from '../telegram';
+import Badge from '../components/Badge';
 import './Register.css';
 
 export default function Register({ isKiosk = false }) {
     const webcamRef = useRef(null);
+    const badgeRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
     
     const [photoData, setPhotoData] = useState(null);
     const [successQR, setSuccessQR] = useState(null);
+    const [registeredVisitor, setRegisteredVisitor] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    const handlePrint = useReactToPrint({
+        contentRef: badgeRef,
+        documentTitle: registeredVisitor ? `Visitor_Badge_${registeredVisitor.id}` : 'Visitor_Badge',
+    });
 
     const [formData, setFormData] = useState({
         name: location.state?.preregData?.name || '',
@@ -38,9 +49,14 @@ export default function Register({ isKiosk = false }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting) return;
+        setSubmitting(true);
         
         try {
             const visitorId = await generateVisitorId();
+            
+            // Generate 4-digit PIN for host verification
+            const pin = Math.floor(1000 + Math.random() * 9000).toString();
             
             const visitor = {
                 id: visitorId,
@@ -52,30 +68,33 @@ export default function Register({ isKiosk = false }) {
                 photoData: photoData,
                 status: isKiosk ? 'registered' : 'checked-in',
                 checkInTime: isKiosk ? null : new Date().toISOString(),
-                checkOutTime: null
+                checkOutTime: null,
+                auth_pin: pin
             };
             
             await db.visitors.add(visitor);
+            
+            // Send Telegram PIN alert to host
+            await sendTelegramMessage(visitor.name, visitor.hostName, pin);
             
             if (location.state?.preregData?.id) {
                 await db.preregistered.update(location.state.preregData.id, { status: 'arrived' });
             }
             
-            if (isKiosk) {
-                setSuccessQR(visitorId);
-            } else {
-                alert(`Visitor Registered Successfully!\nVisitor ID: ${visitorId}`);
-                navigate('/dashboard');
-            }
+            setRegisteredVisitor(visitor);
+            setSuccessQR(visitorId);
             
         } catch (error) {
             console.error("Registration Error:", error);
             alert("Error saving visitor data: " + (error.message || JSON.stringify(error)));
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleNextVisitor = () => {
         setSuccessQR(null);
+        setRegisteredVisitor(null);
         setVisitorStatus('registered');
         setUnlockedExitQR(false);
         setEnteredPin('');
@@ -167,6 +186,148 @@ export default function Register({ isKiosk = false }) {
         return origin;
     };
 
+    // 1. Security View: Details card & instant Badge Printing
+    if (registeredVisitor && !isKiosk) {
+        return (
+            <section className="view-section active">
+                {/* Hidden Badge Component for Printing */}
+                <Badge ref={badgeRef} visitor={registeredVisitor} />
+
+                <div className="glass-panel form-container" style={{ maxWidth: '560px', margin: '0 auto', padding: '32px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
+                        <h2 style={{ color: 'var(--success)', marginBottom: '8px' }}>Visitor Registered & Checked In!</h2>
+                        <span style={{ 
+                            background: 'rgba(59, 130, 246, 0.15)', 
+                            color: 'var(--accent-primary)', 
+                            padding: '6px 16px', 
+                            borderRadius: '20px', 
+                            fontFamily: 'monospace', 
+                            fontWeight: 'bold',
+                            fontSize: '15px'
+                        }}>
+                            {registeredVisitor.id}
+                        </span>
+                    </div>
+
+                    {/* Visitor Details Summary Card */}
+                    <div style={{ 
+                        background: 'rgba(255, 255, 255, 0.04)', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '16px', 
+                        padding: '20px', 
+                        marginBottom: '20px',
+                        display: 'flex',
+                        gap: '20px',
+                        alignItems: 'center'
+                    }}>
+                        {/* Photo Thumbnail */}
+                        <div style={{ 
+                            width: '90px', 
+                            height: '90px', 
+                            borderRadius: '12px', 
+                            overflow: 'hidden', 
+                            background: 'rgba(255, 255, 255, 0.1)', 
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            {registeredVisitor.photoData ? (
+                                <img src={registeredVisitor.photoData} alt={registeredVisitor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                                <i className="fa-solid fa-user" style={{ fontSize: '36px', color: 'var(--text-secondary)' }}></i>
+                            )}
+                        </div>
+
+                        {/* Details */}
+                        <div style={{ flex: 1 }}>
+                            <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', color: 'white' }}>{registeredVisitor.name}</h3>
+                            {registeredVisitor.company && (
+                                <p style={{ margin: '0 0 8px 0', color: 'var(--accent-primary)', fontSize: '14px', fontWeight: '500' }}>
+                                    <i className="fa-solid fa-building" style={{ marginRight: '6px' }}></i>
+                                    {registeredVisitor.company}
+                                </p>
+                            )}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                <div><strong>Host:</strong> {registeredVisitor.hostName}</div>
+                                <div><strong>Purpose:</strong> {registeredVisitor.purpose}</div>
+                                <div><strong>Phone:</strong> {registeredVisitor.phone || 'N/A'}</div>
+                                <div><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Telegram Host PIN Alert Notice */}
+                    {registeredVisitor.auth_pin && (
+                        <div style={{ 
+                            background: 'rgba(16, 185, 129, 0.1)', 
+                            border: '1px solid rgba(16, 185, 129, 0.2)', 
+                            borderRadius: '12px', 
+                            padding: '14px 18px', 
+                            marginBottom: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}>
+                            <div>
+                                <div style={{ color: 'var(--success)', fontWeight: '600', fontSize: '14px', marginBottom: '2px' }}>
+                                    <i className="fa-brands fa-telegram" style={{ marginRight: '8px', fontSize: '16px' }}></i>
+                                    Telegram Alert Sent to Host
+                                </div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                    Host ({registeredVisitor.hostName}) was notified
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Host PIN</div>
+                                <div style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '18px', color: 'white', letterSpacing: '2px' }}>
+                                    {registeredVisitor.auth_pin}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <button 
+                            type="button" 
+                            className="btn btn-primary w-100" 
+                            onClick={handlePrint}
+                            style={{ padding: '14px', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                        >
+                            <i className="fa-solid fa-print"></i>
+                            Print Visitor Badge
+                        </button>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <button 
+                                type="button" 
+                                className="btn btn-secondary" 
+                                onClick={handleNextVisitor}
+                                style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            >
+                                <i className="fa-solid fa-user-plus"></i>
+                                Next Visitor
+                            </button>
+
+                            <button 
+                                type="button" 
+                                className="btn btn-outline" 
+                                onClick={() => navigate('/dashboard')}
+                                style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            >
+                                <i className="fa-solid fa-chart-line"></i>
+                                Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    // 2. Kiosk Self-Service View
     if (successQR) {
         const cleanOrigin = getCleanOrigin();
         const qrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkin`;
@@ -174,6 +335,7 @@ export default function Register({ isKiosk = false }) {
         
         return (
             <section className="view-section active">
+                <Badge ref={badgeRef} visitor={registeredVisitor} />
                 <div className="glass-panel form-container" style={{ textAlign: 'center', padding: '48px 32px', maxWidth: '500px', margin: '0 auto' }}>
                     {visitorStatus === 'registered' && (
                         <>
@@ -320,7 +482,16 @@ export default function Register({ isKiosk = false }) {
                     
                     <div className="form-actions mt-4" style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                         <button type="button" className="btn btn-outline" onClick={() => navigate('/')}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Register & Get Check-In QR</button>
+                        <button type="submit" className="btn btn-primary" disabled={submitting}>
+                            {submitting ? (
+                                <>
+                                    <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                                    Processing...
+                                </>
+                            ) : (
+                                isKiosk ? 'Register & Get Check-In QR' : 'Register & Print Badge'
+                            )}
+                        </button>
                     </div>
                 </form>
             </div>
