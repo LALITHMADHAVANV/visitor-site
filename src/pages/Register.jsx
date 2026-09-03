@@ -77,17 +77,11 @@ export default function Register({ isKiosk = false }) {
     const handleNextVisitor = () => {
         setSuccessQR(null);
         setVisitorStatus('registered');
-        setUnlockedExitQR(false);
-        setEnteredPin('');
-        setPinError('');
         setFormData({ name: '', phone: '', company: '', hostName: '', purpose: '' });
         setPhotoData(null);
     };
 
     const [visitorStatus, setVisitorStatus] = useState('registered');
-    const [enteredPin, setEnteredPin] = useState('');
-    const [pinError, setPinError] = useState('');
-    const [unlockedExitQR, setUnlockedExitQR] = useState(false);
 
     const statusRef = useRef(visitorStatus);
     statusRef.current = visitorStatus;
@@ -98,9 +92,6 @@ export default function Register({ isKiosk = false }) {
         
         // Reset state for new visitor QR display
         setVisitorStatus('registered');
-        setUnlockedExitQR(false);
-        setEnteredPin('');
-        setPinError('');
 
         const checkStatus = async () => {
             try {
@@ -144,20 +135,15 @@ export default function Register({ isKiosk = false }) {
         };
     }, [successQR]);
 
-    const handlePinVerifyOnKiosk = async (e) => {
-        e.preventDefault();
-        setPinError('');
-        try {
-            const v = await db.visitors.get(successQR);
-            if (v && v.auth_pin === enteredPin) {
-                setUnlockedExitQR(true);
-            } else {
-                setPinError('Invalid PIN. Please enter the code sent to your host.');
-            }
-        } catch (err) {
-            setPinError('Error verifying PIN.');
+    // Auto-advance to next visitor 5 seconds after check-in
+    useEffect(() => {
+        if (visitorStatus === 'checked-in') {
+            const timer = setTimeout(() => {
+                handleNextVisitor();
+            }, 5000);
+            return () => clearTimeout(timer);
         }
-    };
+    }, [visitorStatus]);
 
     const getCleanOrigin = () => {
         const origin = window.location.origin;
@@ -170,7 +156,6 @@ export default function Register({ isKiosk = false }) {
     if (successQR) {
         const cleanOrigin = getCleanOrigin();
         const qrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkin`;
-        const exitQrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkout`;
         
         return (
             <section className="view-section active">
@@ -180,7 +165,7 @@ export default function Register({ isKiosk = false }) {
                             <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '24px' }}></i>
                             <h2>Registration Successful!</h2>
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                                Scan this <strong>Check-In QR Code</strong> at the security desk to check in.
+                                Scan this <strong>Check-In QR Code</strong> on your mobile to check in.
                             </p>
                             
                             <div style={{ background: 'white', padding: '24px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
@@ -193,50 +178,18 @@ export default function Register({ isKiosk = false }) {
                         </>
                     )}
 
-                    {visitorStatus === 'checked-in' && !unlockedExitQR && (
+                    {visitorStatus === 'checked-in' && (
                         <>
-                            <i className="fa-solid fa-user-check text-success" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
+                            <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
                             <h2 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h2>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                                You are checked in. A 4-digit PIN has been sent to your host via Telegram.
-                            </p>
-
-                            <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                                <h3>Unlock Exit Pass</h3>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
-                                    Enter the 4-digit PIN from your host to generate your <strong>Check-Out Exit Pass</strong>:
-                                </p>
-                                
-                                <form onSubmit={handlePinVerifyOnKiosk}>
-                                    {pinError && <div className="text-danger" style={{ marginBottom: '12px' }}>{pinError}</div>}
-                                    <input 
-                                        type="text" 
-                                        required 
-                                        value={enteredPin}
-                                        onChange={(e) => setEnteredPin(e.target.value)}
-                                        placeholder="Enter PIN"
-                                        style={{ fontSize: '24px', textAlign: 'center', letterSpacing: '8px', width: '100%', marginBottom: '16px' }}
-                                        maxLength={4}
-                                        className="form-control"
-                                    />
-                                    <button type="submit" className="btn btn-primary w-100">
-                                        Unlock Exit QR Pass
-                                    </button>
-                                </form>
-                            </div>
-                        </>
-                    )}
-
-                    {(visitorStatus === 'checked-in' && unlockedExitQR) && (
-                        <>
-                            <i className="fa-solid fa-lock-open text-primary" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
-                            <h2>Your Exit QR Pass</h2>
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                                Show this <strong>Exit QR Code</strong> to Security when leaving to check out:
+                                Visitor is checked in. A 4-digit PIN has been sent to your host via Telegram.
                             </p>
-                            
-                            <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
-                                <QRCodeSVG value={exitQrUrl} size={220} />
+
+                            <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '20px', borderRadius: '16px', marginBottom: '24px' }}>
+                                <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>
+                                    📱 The visitor can enter the PIN on their mobile phone to unlock their Exit Pass when leaving.
+                                </p>
                             </div>
                         </>
                     )}
