@@ -415,6 +415,34 @@ export default function Register({ isKiosk = false }) {
     return (
         <section className="view-section active">
             <div className="glass-panel form-container">
+                {!isKiosk && (
+                    <div style={{ 
+                        background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1))', 
+                        border: '1px solid rgba(59, 130, 246, 0.25)', 
+                        borderRadius: '12px', 
+                        padding: '12px 18px', 
+                        marginBottom: '24px', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center' 
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fa-solid fa-qrcode" style={{ color: 'var(--accent-primary)', fontSize: '20px' }}></i>
+                            <span style={{ fontSize: '14px', color: 'white' }}>
+                                Want the visitor to self-register on their own phone?
+                            </span>
+                        </div>
+                        <button 
+                            type="button" 
+                            className="btn btn-outline btn-sm" 
+                            onClick={() => navigate('/visitor-qr')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            <i className="fa-solid fa-expand"></i>
+                            Open QR Standee
+                        </button>
+                    </div>
+                )}
                 <form onSubmit={handleSubmit}>
                     <div className="form-grid">
                         {/* Photo Capture */}
