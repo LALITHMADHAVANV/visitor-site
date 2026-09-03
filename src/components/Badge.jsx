@@ -38,7 +38,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <div className="date-info">
                             <span className="label">Date:</span>
                             <span className="value">
-                                {new Date(visitor.checkInTime).toLocaleDateString()}
+                                {visitor.checkInTime ? new Date(visitor.checkInTime).toLocaleDateString() : new Date().toLocaleDateString()}
                             </span>
                         </div>
                     </div>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
 import { sendTelegramMessage } from '../telegram';
+import Badge from '../components/Badge';
 import './Scanner.css'; // Reuse scanner styles
 
 export default function MobileAction() {
@@ -14,9 +16,15 @@ export default function MobileAction() {
     const [status, setStatus] = useState('loading'); // loading, ready-checkin, checkin-done, success-out, error
     const [processing, setProcessing] = useState(false);
 
+    const badgeRef = useRef(null);
     const statusRef = useRef(status);
     statusRef.current = status;
     const isProcessingCheckIn = useRef(false);
+
+    const handlePrint = useReactToPrint({
+        contentRef: badgeRef,
+        documentTitle: visitor ? `Visitor_Badge_${visitor.id}` : 'Visitor_Badge',
+    });
 
     useEffect(() => {
         if (!visitorId) {
@@ -120,6 +128,9 @@ export default function MobileAction() {
 
     return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-dark)' }}>
+            {/* Hidden Printable Badge */}
+            <Badge ref={badgeRef} visitor={visitor} />
+
             <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '32px', textAlign: 'center' }}>
                 <i className="fa-solid fa-id-card" style={{ fontSize: '48px', color: 'var(--accent-primary)', marginBottom: '16px' }}></i>
                 <h2 style={{ marginBottom: '4px' }}>Visitor Pass</h2>
@@ -157,6 +168,25 @@ export default function MobileAction() {
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '12px' }}>
                             You are checked in. A 4-digit PIN has been sent to <strong>{visitor?.hostName}</strong> via Telegram.
                         </p>
+
+                        <button 
+                            type="button" 
+                            className="btn btn-primary w-100" 
+                            onClick={handlePrint}
+                            style={{ 
+                                margin: '16px 0', 
+                                padding: '14px', 
+                                fontSize: '16px', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '8px' 
+                            }}
+                        >
+                            <i className="fa-solid fa-print"></i>
+                            Print Visitor Badge
+                        </button>
+
                         <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', marginTop: '16px' }}>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
                                 ℹ️ Please obtain the PIN from your host and verify at the security desk to get your Exit Pass when leaving.
