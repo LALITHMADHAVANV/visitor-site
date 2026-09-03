@@ -99,7 +99,20 @@ export const db = {
             return data;
         },
         async add(prereg) {
-            const { data, error } = await supabase.from('preregistered').insert([prereg]).select();
+            // Attempt insert with full payload
+            let { data, error } = await supabase.from('preregistered').insert([prereg]).select();
+            if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
+                // If optional columns like 'company' or 'purpose' do not exist in the table, insert core columns
+                const safePayload = {
+                    name: prereg.name,
+                    hostName: prereg.hostName,
+                    expectedDate: prereg.expectedDate,
+                    status: prereg.status || 'expected'
+                };
+                const retry = await supabase.from('preregistered').insert([safePayload]).select();
+                if (retry.error) throw retry.error;
+                return retry.data[0];
+            }
             if (error) throw error;
             return data[0];
         },
