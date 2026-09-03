@@ -34,9 +34,6 @@ export default function Sidebar() {
                 <NavLink to="/dashboard" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
                     <i className="fa-solid fa-chart-pie"></i> Dashboard
                 </NavLink>
-                <NavLink to="/scanner" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
-                    <i className="fa-solid fa-qrcode"></i> QR Scanner
-                </NavLink>
                 <NavLink to="/register" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
                     <i className="fa-solid fa-user-plus"></i> New Visitor
                 </NavLink>

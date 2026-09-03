@@ -2,10 +2,12 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../AuthContext';
 import Badge from '../components/Badge';
 import './Dashboard.css';
 
 export default function Dashboard() {
+    const { user } = useAuth();
     const badgeRef = useRef();
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [allVisitors, setAllVisitors] = useState([]);
@@ -138,6 +140,7 @@ export default function Dashboard() {
                     <table className="data-table">
                         <thead>
                             <tr>
+                                <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Company</th>
@@ -149,13 +152,16 @@ export default function Dashboard() {
                         <tbody>
                             {insideVisitors.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6">
+                                    <td colSpan="7">
                                         <div className="empty-state">No visitors currently inside.</div>
                                     </td>
                                 </tr>
                             ) : (
-                                [...insideVisitors].sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime)).map(v => (
+                                [...insideVisitors].sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime)).map((v, index) => (
                                     <tr key={v.id}>
+                                        <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                                            {index + 1}
+                                        </td>
                                         <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.id}</span></td>
                                         <td>
                                             <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
@@ -174,9 +180,11 @@ export default function Dashboard() {
                                                 <button className="btn btn-outline btn-sm" onClick={() => handleCheckout(v.id)}>
                                                     Check Out
                                                 </button>
-                                                <button className="btn btn-secondary btn-sm" onClick={() => printBadge(v)}>
-                                                    <i className="fa-solid fa-print"></i>
-                                                </button>
+                                                {user?.role === 'security' && (
+                                                    <button className="btn btn-secondary btn-sm" onClick={() => printBadge(v)} title="Print Badge">
+                                                        <i className="fa-solid fa-print"></i>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

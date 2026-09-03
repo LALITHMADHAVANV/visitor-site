@@ -111,6 +111,7 @@ export default function Visitors() {
                     <table className="data-table">
                         <thead>
                             <tr>
+                                <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
                                 <th>ID</th>
                                 <th>Photo</th>
                                 <th>Name</th>
@@ -123,13 +124,16 @@ export default function Visitors() {
                         <tbody>
                             {filteredVisitors.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7">
+                                    <td colSpan="8">
                                         <div className="empty-state">No visitors found matching your criteria.</div>
                                     </td>
                                 </tr>
                             ) : (
-                                filteredVisitors.map(v => (
+                                filteredVisitors.map((v, index) => (
                                     <tr key={v.id}>
+                                        <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                                            {index + 1}
+                                        </td>
                                         <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.id}</span></td>
                                         <td>
                                             {v.photoData ? 
