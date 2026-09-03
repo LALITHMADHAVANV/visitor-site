@@ -106,6 +106,9 @@ export default function Dashboard() {
         });
     };
 
+    const displayVisitors = todayVisitors.length > 0 ? todayVisitors : allVisitors;
+    const sortedVisitors = [...displayVisitors].sort((a, b) => new Date(b.checkInTime || 0) - new Date(a.checkInTime || 0));
+
     return (
         <section className="view-section active">
             <div className="stats-grid">
@@ -133,8 +136,11 @@ export default function Dashboard() {
             </div>
 
             <div className="dashboard-lists glass-panel mt-4">
-                <div className="section-header" style={{padding: '16px', borderBottom: '1px solid var(--border-color)'}}>
-                    <h2>Active Visitors</h2>
+                <div className="section-header" style={{padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <h2>Today's Visitors</h2>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        {insideVisitors.length} inside / {todayVisitors.length} total
+                    </span>
                 </div>
                 <div className="table-responsive">
                     <table className="data-table">
@@ -146,18 +152,20 @@ export default function Dashboard() {
                                 <th>Company</th>
                                 <th>Host</th>
                                 <th>Check-In Time</th>
-                                <th>Action</th>
+                                <th>Check-Out Time</th>
+                                <th>Status</th>
+                                {user?.role !== 'admin' && <th>Action</th>}
                             </tr>
                         </thead>
                         <tbody>
-                            {insideVisitors.length === 0 ? (
+                            {sortedVisitors.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7">
-                                        <div className="empty-state">No visitors currently inside.</div>
+                                    <td colSpan={user?.role === 'admin' ? 8 : 9}>
+                                        <div className="empty-state">No visitors recorded today.</div>
                                     </td>
                                 </tr>
                             ) : (
-                                [...insideVisitors].sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime)).map((v, index) => (
+                                sortedVisitors.map((v, index) => (
                                     <tr key={v.id}>
                                         <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
                                             {index + 1}
@@ -176,17 +184,31 @@ export default function Dashboard() {
                                         <td>{v.hostName}</td>
                                         <td>{formatTime(v.checkInTime)}</td>
                                         <td>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <button className="btn btn-outline btn-sm" onClick={() => handleCheckout(v.id)}>
-                                                    Check Out
-                                                </button>
-                                                {user?.role === 'security' && (
+                                            {v.checkOutTime ? (
+                                                formatTime(v.checkOutTime)
+                                            ) : (
+                                                <span style={{ color: 'var(--success)', fontWeight: '500' }}>Active</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
+                                                {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
+                                            </span>
+                                        </td>
+                                        {user?.role !== 'admin' && (
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {v.status === 'checked-in' && (
+                                                        <button className="btn btn-outline btn-sm" onClick={() => handleCheckout(v.id)}>
+                                                            Check Out
+                                                        </button>
+                                                    )}
                                                     <button className="btn btn-secondary btn-sm" onClick={() => printBadge(v)} title="Print Badge">
                                                         <i className="fa-solid fa-print"></i>
                                                     </button>
-                                                )}
-                                            </div>
-                                        </td>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}

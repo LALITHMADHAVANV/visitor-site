@@ -118,13 +118,14 @@ export default function Visitors() {
                                 <th>Phone</th>
                                 <th>Host / Purpose</th>
                                 <th>Check-In</th>
+                                <th>Check-Out</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredVisitors.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8">
+                                    <td colSpan="9">
                                         <div className="empty-state">No visitors found matching your criteria.</div>
                                     </td>
                                 </tr>
@@ -145,6 +146,7 @@ export default function Visitors() {
                                         <td>{v.phone}</td>
                                         <td>{v.hostName}<br/><span style={{fontSize:'12px', color:'var(--text-secondary)'}}>{v.purpose}</span></td>
                                         <td>{formatTime(v.checkInTime)}</td>
+                                        <td>{v.checkOutTime ? formatTime(v.checkOutTime) : '-'}</td>
                                         <td>
                                             <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
                                                 {v.status === 'checked-in' ? 'Checked In' : 'Checked Out'}
