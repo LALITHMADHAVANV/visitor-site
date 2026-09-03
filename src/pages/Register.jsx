@@ -173,8 +173,8 @@ export default function Register({ isKiosk = false }) {
 
     const getCleanOrigin = () => {
         const origin = window.location.origin;
-        if (origin.includes('.vercel.app') && origin.includes('-')) {
-            return 'https://visitor-site-seven.vercel.app';
+        if (origin.includes('.vercel.app')) {
+            return 'https://visitor-site-texplus.vercel.app';
         }
         return origin;
     };

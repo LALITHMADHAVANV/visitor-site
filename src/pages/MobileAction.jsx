@@ -206,7 +206,7 @@ export default function MobileAction() {
                         </p>
                         
                         <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
-                            <QRCodeSVG value={`${(window.location.origin.includes('.vercel.app') && window.location.origin.includes('-')) ? 'https://visitor-site-seven.vercel.app' : window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} size={220} />
+                            <QRCodeSVG value={`${(window.location.origin.includes('.vercel.app')) ? 'https://visitor-site-texplus.vercel.app' : window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} size={220} />
                         </div>
 
                         <p style={{ color: 'var(--success)', fontSize: '14px', fontWeight: 'bold' }}>
