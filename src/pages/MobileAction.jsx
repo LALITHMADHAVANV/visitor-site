@@ -11,10 +11,7 @@ export default function MobileAction() {
     const actionParam = searchParams.get('action');
     
     const [visitor, setVisitor] = useState(null);
-    const [status, setStatus] = useState('loading'); // loading, ready-checkin, checkin-done, enter-pin, show-exit-qr, success-out, error
-    
-    const [enteredPin, setEnteredPin] = useState('');
-    const [pinError, setPinError] = useState('');
+    const [status, setStatus] = useState('loading'); // loading, ready-checkin, checkin-done, success-out, error
     const [processing, setProcessing] = useState(false);
 
     const statusRef = useRef(status);
@@ -50,7 +47,7 @@ export default function MobileAction() {
                     return;
                 }
 
-                // 2. Visitor scans Check-In QR on their own phone
+                // 2. Visitor scans Check-In QR on mobile
                 if (v.status === 'registered' || v.status === 'expected') {
                     // Generate PIN for Host
                     const pin = Math.floor(1000 + Math.random() * 9000).toString();
@@ -67,9 +64,9 @@ export default function MobileAction() {
                     v.status = 'checked-in';
                     v.auth_pin = pin;
                     setVisitor(v);
-                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
+                    if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-in') {
-                    if (statusRef.current !== 'show-exit-qr') setStatus('enter-pin');
+                    if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-out') {
                     if (statusRef.current !== 'success-out') setStatus('success-out');
                 } else {
@@ -115,34 +112,6 @@ export default function MobileAction() {
         }
     };
 
-    // Visitor PIN Verification Action (On Visitor's Phone)
-    const handlePinVerification = async (e) => {
-        e.preventDefault();
-        setPinError('');
-        
-        if (!enteredPin) {
-            setPinError('Please enter the 4-digit PIN from your host.');
-            return;
-        }
-
-        setProcessing(true);
-        try {
-            const v = await db.visitors.get(visitorId);
-            
-            if (v && v.auth_pin === enteredPin) {
-                // PIN verified! Show Exit QR Code
-                setStatus('show-exit-qr');
-            } else {
-                setPinError('Invalid PIN. Please ask your host for the 4-digit code sent to their Telegram.');
-            }
-        } catch (error) {
-            console.error("PIN Verification Error:", error);
-            setPinError('Error verifying PIN.');
-        } finally {
-            setProcessing(false);
-        }
-    };
-
     if (status === 'loading') return <div style={{padding: '32px', textAlign: 'center', color: 'white'}}>Loading Visitor Info...</div>;
     if (status === 'error') return <div style={{padding: '32px', textAlign: 'center', color: 'var(--danger)'}}><h2>Invalid or Pass Expired</h2></div>;
 
@@ -177,45 +146,19 @@ export default function MobileAction() {
                     </div>
                 )}
 
-                {/* State 2: Security Entrance Scan Complete */}
+                {/* State 2: Entrance Scan Complete */}
                 {status === 'checkin-done' && (
                     <div>
                         <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
                         <h3 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                            Visitor is checked in. Telegram PIN sent to <strong>{visitor?.hostName}</strong>.
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '12px' }}>
+                            You are checked in. A 4-digit PIN has been sent to <strong>{visitor?.hostName}</strong> via Telegram.
                         </p>
-                    </div>
-                )}
-
-                {/* State 3: Visitor Enters Host PIN on Visitor Phone */}
-                {status === 'enter-pin' && (
-                    <div>
-                        <h3 style={{ color: 'white', marginBottom: '8px' }}>Unlock Exit Pass</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>
-                            A 4-digit PIN was sent to <strong>{visitor?.hostName}</strong> via Telegram. Enter it below to unlock your <strong>Exit QR Code</strong>:
-                        </p>
-
-                        <form onSubmit={handlePinVerification}>
-                            {pinError && <div className="text-danger" style={{ marginBottom: '16px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px', fontSize: '14px' }}>{pinError}</div>}
-                            
-                            <div className="form-group" style={{ marginBottom: '20px' }}>
-                                <input 
-                                    type="text" 
-                                    required 
-                                    value={enteredPin}
-                                    onChange={(e) => setEnteredPin(e.target.value)}
-                                    placeholder="Enter 4-digit PIN"
-                                    style={{ fontSize: '24px', textAlign: 'center', letterSpacing: '8px', width: '100%' }}
-                                    maxLength={4}
-                                    className="form-control"
-                                />
-                            </div>
-
-                            <button type="submit" className="btn btn-primary w-100" style={{ padding: '14px', fontSize: '16px' }} disabled={processing}>
-                                {processing ? 'Verifying...' : 'Verify & Unlock Exit QR'}
-                            </button>
-                        </form>
+                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', marginTop: '16px' }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
+                                ℹ️ Please obtain the PIN from your host and verify at the security desk to get your Exit Pass when leaving.
+                            </p>
+                        </div>
                     </div>
                 )}
 
