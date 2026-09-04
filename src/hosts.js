@@ -1,6 +1,7 @@
 export const OFFICE_HOSTS = [
     { name: 'HARI RAGAVAN', chatId: '8238405249', department: 'ENGINEERING' },
-    { name: 'LALITH', chatId: '8853985508', department: 'ADMINISTRATION' }  
+    { name: 'LALITH', chatId: '8853985508', department: 'ADMINISTRATION' },
+    { name: 'RAMRAJ', chatId: '5130860318', department: 'OFFICE' }
 ];
 
 export const getHostChatId = (hostName) => {
