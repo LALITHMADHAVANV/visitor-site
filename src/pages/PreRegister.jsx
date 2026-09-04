@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { useNavigate } from 'react-router-dom';
+import { OFFICE_HOSTS } from '../hosts';
 
 export default function PreRegister() {
     const [formData, setFormData] = useState({
@@ -128,7 +129,40 @@ export default function PreRegister() {
                         </div>
                         <div className="form-group">
                             <label>Host *</label>
-                            <input type="text" name="hostName" required value={formData.hostName} onChange={handleChange} className="form-control" />
+                            <select 
+                                name="hostSelect" 
+                                required 
+                                value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')} 
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === 'other') {
+                                        setFormData(prev => ({ ...prev, hostName: '' }));
+                                    } else {
+                                        setFormData(prev => ({ ...prev, hostName: val }));
+                                    }
+                                }}
+                                className="form-control"
+                            >
+                                <option value="">-- Select Person to Visit --</option>
+                                {OFFICE_HOSTS.map(h => (
+                                    <option key={h.name} value={h.name}>
+                                        {h.name} {h.department ? `(${h.department})` : ''}
+                                    </option>
+                                ))}
+                                <option value="other">Other (Type Custom Name)</option>
+                            </select>
+                            {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
+                                <input 
+                                    type="text" 
+                                    name="hostName" 
+                                    required 
+                                    value={formData.hostName} 
+                                    onChange={handleChange} 
+                                    placeholder="Type host name" 
+                                    className="form-control" 
+                                    style={{ marginTop: '8px' }} 
+                                />
+                            )}
                         </div>
                         <div className="form-group">
                             <label>Expected Date *</label>

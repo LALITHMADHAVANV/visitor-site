@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
 import { supabase } from '../supabaseClient';
+import { OFFICE_HOSTS } from '../hosts';
 import Badge from '../components/Badge';
 import './Register.css';
 
@@ -413,8 +414,40 @@ export default function Register({ isKiosk = false }) {
                                 <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Acme Corp (Optional)" />
                             </div>
                             <div className="form-group">
-                                <label>Person to Meet / Dept *</label>
-                                <input type="text" name="hostName" required value={formData.hostName} onChange={handleChange} placeholder="Jane Smith / HR" />
+                                <label>Person to Meet / Host *</label>
+                                <select 
+                                    name="hostSelect" 
+                                    required 
+                                    value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')} 
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === 'other') {
+                                            setFormData(prev => ({ ...prev, hostName: '' }));
+                                        } else {
+                                            setFormData(prev => ({ ...prev, hostName: val }));
+                                        }
+                                    }}
+                                    className="form-control"
+                                >
+                                    <option value="">-- Select Person to Meet --</option>
+                                    {OFFICE_HOSTS.map(h => (
+                                        <option key={h.name} value={h.name}>
+                                            {h.name} {h.department ? `(${h.department})` : ''}
+                                        </option>
+                                    ))}
+                                    <option value="other">Other (Type Custom Name)</option>
+                                </select>
+                                {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
+                                    <input 
+                                        type="text" 
+                                        name="hostName" 
+                                        required 
+                                        value={formData.hostName} 
+                                        onChange={handleChange} 
+                                        placeholder="Type host or department name" 
+                                        style={{ marginTop: '8px' }}
+                                    />
+                                )}
                             </div>
                             <div className="form-group full-width">
                                 <label>Purpose of Visit *</label>
