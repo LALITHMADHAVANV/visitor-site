@@ -47,10 +47,6 @@ export default function Sidebar() {
                 <NavLink to="/preregister" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
                     <i className="fa-regular fa-calendar-check"></i> Pre-Register
                 </NavLink>
-
-                <NavLink to="/visitor-qr" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
-                    <i className="fa-solid fa-qrcode"></i> Visitor QR Stand
-                </NavLink>
             </nav>
             <div className="sidebar-footer">
                 <button className="btn btn-outline w-100" onClick={handleLogout} style={{ marginBottom: '24px' }}>

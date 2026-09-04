@@ -9,7 +9,6 @@ import PreRegister from './pages/PreRegister';
 import Login from './pages/Login';
 import Scanner from './pages/Scanner';
 import MobileAction from './pages/MobileAction';
-import VisitorQR from './pages/VisitorQR';
 import { AuthProvider, useAuth } from './AuthContext';
 import { seedUsers } from './db';
 import './index.css';
@@ -101,14 +100,6 @@ function AppContent() {
         <ProtectedRoute allowedRoles={['admin', 'security']}>
           <AuthenticatedLayout>
             <PreRegister />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/visitor-qr" element={
-        <ProtectedRoute allowedRoles={['admin', 'security']}>
-          <AuthenticatedLayout>
-            <VisitorQR />
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />

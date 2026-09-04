@@ -56,24 +56,19 @@ export default function MobileAction() {
                     return;
                 }
 
-                // 2. Visitor scans Check-In QR on mobile (Trigger single Telegram message)
+                // 2. Visitor scans Check-In QR on mobile (Trigger arrival message to Host)
                 if ((v.status === 'registered' || v.status === 'expected') && !isProcessingCheckIn.current) {
                     isProcessingCheckIn.current = true;
                     
-                    // Generate PIN for Host
-                    const pin = Math.floor(1000 + Math.random() * 9000).toString();
-                    
                     await db.visitors.update(v.id, {
                         status: 'checked-in',
-                        checkInTime: new Date().toISOString(),
-                        auth_pin: pin
+                        checkInTime: new Date().toISOString()
                     });
 
-                    // Send Telegram PIN to Host
-                    await sendTelegramMessage(v.name, v.hostName, pin);
+                    // Send Telegram Arrival Alert to Host
+                    await sendTelegramMessage(v);
 
                     v.status = 'checked-in';
-                    v.auth_pin = pin;
                     setVisitor(v);
                     if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-in') {
@@ -101,19 +96,15 @@ export default function MobileAction() {
         if (!visitor) return;
         setProcessing(true);
         try {
-            // Generate 4-digit Host PIN
-            const pin = Math.floor(1000 + Math.random() * 9000).toString();
-            
             await db.visitors.update(visitor.id, {
                 status: 'checked-in',
-                checkInTime: new Date().toISOString(),
-                auth_pin: pin
+                checkInTime: new Date().toISOString()
             });
 
-            // Dispatch Telegram message to Host
-            await sendTelegramMessage(visitor.name, visitor.hostName, pin);
+            // Dispatch Telegram arrival notification to Host
+            await sendTelegramMessage(visitor);
             
-            setVisitor(prev => ({ ...prev, status: 'checked-in', auth_pin: pin }));
+            setVisitor(prev => ({ ...prev, status: 'checked-in' }));
             setStatus('checkin-done');
         } catch (err) {
             console.error("Check-in error:", err);
@@ -166,7 +157,7 @@ export default function MobileAction() {
                         <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
                         <h3 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '12px' }}>
-                            You are checked in. A 4-digit PIN has been sent to <strong>{visitor?.hostName}</strong> via Telegram.
+                            You are checked in. An arrival notification has been sent to your host <strong>{visitor?.hostName}</strong> via Telegram.
                         </p>
 
                         <button 
@@ -187,9 +178,9 @@ export default function MobileAction() {
                             Print Visitor Badge
                         </button>
 
-                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '16px', borderRadius: '12px', marginTop: '16px' }}>
+                        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginTop: '16px' }}>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
-                                ℹ️ Please obtain the PIN from your host and verify at the security desk to get your Exit Pass when leaving.
+                                ℹ️ Please proceed to meet your host. When leaving, check out at the security desk.
                             </p>
                         </div>
                     </div>
@@ -210,7 +201,7 @@ export default function MobileAction() {
                         </div>
 
                         <p style={{ color: 'var(--success)', fontSize: '14px', fontWeight: 'bold' }}>
-                            ✓ Host PIN Verified
+                            ✓ Authorized Exit Pass
                         </p>
                     </div>
                 )}
