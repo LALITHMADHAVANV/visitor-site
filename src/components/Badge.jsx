@@ -51,6 +51,13 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                             <span className="label">Host:</span>
                             <span className="value">{visitor.hostName || '-'}</span>
                         </div>
+
+                        {visitor.idType && (
+                            <div className="id-info" style={{ display: 'flex', gap: '4px', fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                                <span className="label" style={{ fontWeight: '600' }}>{visitor.idType}:</span>
+                                <span className="value" style={{ fontFamily: 'monospace' }}>{visitor.idNumber || '-'}</span>
+                            </div>
+                        )}
                         
                         <div className="date-info">
                             <span className="label">Date:</span>
@@ -74,7 +81,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                 
                 <div className="badge-footer">
                     <span className="badge-notice">Scan Exit QR on departure</span>
-                    <span className="badge-id">{visitor.id}</span>
+                    <span className="badge-id">{visitor.visitorNo || visitor.id}</span>
                 </div>
             </div>
         </div>

@@ -5,6 +5,17 @@ function normalizeVisitor(v) {
     if (v.hostname !== undefined && v.hostName === undefined) {
         v.hostName = v.hostname;
     }
+    if (!v.visitorNo) {
+        v.visitorNo = v.id;
+    }
+    // If idType / idNumber is not in columns, extract from purpose tag [ID: Type - Number]
+    if ((!v.idType || !v.idNumber) && v.purpose && v.purpose.includes('[ID:')) {
+        const match = v.purpose.match(/\[ID:\s*([^\]\-]+?)(?:\s*-\s*([^\]]+))?\]/);
+        if (match) {
+            if (!v.idType) v.idType = match[1].trim();
+            if (!v.idNumber && match[2]) v.idNumber = match[2].trim();
+        }
+    }
     return v;
 }
 
@@ -12,12 +23,32 @@ export const db = {
     visitors: {
         async add(visitor) {
             let { data, error } = await supabase.from('visitors').insert([visitor]).select();
-            if (error && (error.code === 'PGRST204' || error.message?.includes('hostName'))) {
-                const fallbackVisitor = { ...visitor, hostname: visitor.hostName };
-                delete fallbackVisitor.hostName;
+            if (error && (error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('hostName'))) {
+                const fallbackVisitor = { ...visitor };
+                if (fallbackVisitor.hostName && error.message?.includes('hostName')) {
+                    fallbackVisitor.hostname = fallbackVisitor.hostName;
+                    delete fallbackVisitor.hostName;
+                }
+                
+                // If idType or idNumber are present, embed them nicely in purpose so data is never lost
+                const idTag = visitor.idType ? `[ID: ${visitor.idType}${visitor.idNumber ? ` - ${visitor.idNumber}` : ''}]` : '';
+                if (idTag && (!fallbackVisitor.purpose || !fallbackVisitor.purpose.includes('[ID:'))) {
+                    fallbackVisitor.purpose = fallbackVisitor.purpose ? `${fallbackVisitor.purpose} ${idTag}` : idTag;
+                }
+
+                delete fallbackVisitor.visitorNo;
+                delete fallbackVisitor.idType;
+                delete fallbackVisitor.idNumber;
+
                 const retry = await supabase.from('visitors').insert([fallbackVisitor]).select();
                 if (retry.error) throw retry.error;
-                return normalizeVisitor(retry.data[0]);
+                const saved = normalizeVisitor(retry.data[0]);
+                return {
+                    ...saved,
+                    visitorNo: visitor.visitorNo || saved.id,
+                    idType: visitor.idType || null,
+                    idNumber: visitor.idNumber || null
+                };
             }
             if (error) throw error;
             return normalizeVisitor(data[0]);

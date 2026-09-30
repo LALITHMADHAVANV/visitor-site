@@ -10,29 +10,36 @@ export const sendTelegramMessage = async (visitorOrName, hostNameArg, extraArg) 
     let purpose = '';
     let id = '';
     let hostChatId = '';
+    let idType = '';
+    let idNumber = '';
 
     if (typeof visitorOrName === 'object' && visitorOrName !== null) {
         visitorName = visitorOrName.name || visitorOrName.visitorName || 'Visitor';
         hostName = visitorOrName.hostName || 'Host';
         company = visitorOrName.company || '';
         purpose = visitorOrName.purpose || 'Meeting';
-        id = visitorOrName.id || '';
+        id = visitorOrName.visitorNo || visitorOrName.id || '';
         hostChatId = visitorOrName.hostChatId || '';
+        idType = visitorOrName.idType || '';
+        idNumber = visitorOrName.idNumber || '';
     } else {
         visitorName = visitorOrName || 'Visitor';
         hostName = hostNameArg || 'Host';
         if (typeof extraArg === 'object' && extraArg !== null) {
             company = extraArg.company || '';
             purpose = extraArg.purpose || 'Meeting';
-            id = extraArg.id || '';
+            id = extraArg.visitorNo || extraArg.id || '';
             hostChatId = extraArg.hostChatId || '';
+            idType = extraArg.idType || '';
+            idNumber = extraArg.idNumber || '';
         }
     }
 
     const targetChatId = hostChatId || await getHostChatId(hostName) || defaultChatId;
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const message = `🔔 *Visitor Arrival Alert*\n\nHello *${hostName}*,\nYour visitor *${visitorName}*${company ? ` from *${company}*` : ''} has arrived and checked in to see you.\n\n📋 *Purpose:* ${purpose || 'Meeting'}\n🆔 *Visitor ID:* ${id || '-'}\n⏰ *Time:* ${timeStr}`;
+    const idProofLine = idType ? `\n🪪 *ID Proof:* ${idType}${idNumber ? ` (${idNumber})` : ''}` : '';
+    const message = `🔔 *Visitor Arrival Alert*\n\nHello *${hostName}*,\nYour visitor *${visitorName}*${company ? ` from *${company}*` : ''} has arrived and checked in to see you.\n\n📋 *Purpose:* ${purpose || 'Meeting'}\n🆔 *Visitor No:* ${id || '-'}${idProofLine}\n⏰ *Time:* ${timeStr}`;
 
     if (!token || !targetChatId) {
         console.warn("Telegram credentials missing in environment. Logging message:");

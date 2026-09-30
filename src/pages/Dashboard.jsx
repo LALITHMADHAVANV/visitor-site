@@ -147,7 +147,7 @@ export default function Dashboard() {
                         <thead>
                             <tr>
                                 <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
-                                <th>ID</th>
+                                <th>Visitor No</th>
                                 <th>Name</th>
                                 <th>Company</th>
                                 <th>Host</th>
@@ -170,14 +170,21 @@ export default function Dashboard() {
                                         <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
                                             {index + 1}
                                         </td>
-                                        <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.id}</span></td>
+                                        <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.visitorNo || v.id}</span></td>
                                         <td>
                                             <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                                                 {v.photoData ? 
                                                     <img src={v.photoData} className="avatar-sm" alt="visitor" /> : 
                                                     <div className="avatar-placeholder">{v.name.charAt(0)}</div>
                                                 }
-                                                <strong>{v.name}</strong>
+                                                <div>
+                                                    <strong>{v.name}</strong>
+                                                    {v.idType && (
+                                                        <div style={{ fontSize: '11px', color: 'var(--accent-primary)', fontFamily: 'monospace' }}>
+                                                            {v.idType}: {v.idNumber || '-'}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td>{v.company || '-'}</td>

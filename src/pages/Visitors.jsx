@@ -25,9 +25,13 @@ export default function Visitors() {
     }, []);
 
     const filteredVisitors = visitors.filter(v => {
-        const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                              v.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              (v.company && v.company.toLowerCase().includes(searchTerm.toLowerCase()));
+        const term = searchTerm.toLowerCase();
+        const matchesSearch = v.name?.toLowerCase().includes(term) || 
+                              v.id?.toLowerCase().includes(term) ||
+                              (v.visitorNo && v.visitorNo.toLowerCase().includes(term)) ||
+                              (v.idNumber && v.idNumber.toLowerCase().includes(term)) ||
+                              (v.idType && v.idType.toLowerCase().includes(term)) ||
+                              (v.company && v.company.toLowerCase().includes(term));
                               
         const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
         
@@ -43,10 +47,12 @@ export default function Visitors() {
     const exportToExcel = () => {
         if (user?.role !== 'admin') return;
         const data = filteredVisitors.map(v => ({
-            ID: v.id,
+            'Visitor No': v.visitorNo || v.id,
             Name: v.name,
             Phone: v.phone,
-            Company: v.company,
+            'ID Type': v.idType || '-',
+            'ID Number': v.idNumber || '-',
+            Company: v.company || '-',
             Host: v.hostName,
             Purpose: v.purpose,
             Status: v.status,
@@ -112,10 +118,11 @@ export default function Visitors() {
                         <thead>
                             <tr>
                                 <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
-                                <th>ID</th>
+                                <th>Visitor No</th>
                                 <th>Photo</th>
                                 <th>Name</th>
                                 <th>Phone</th>
+                                <th>ID Proof</th>
                                 <th>Host / Purpose</th>
                                 <th>Check-In</th>
                                 <th>Check-Out</th>
@@ -125,7 +132,7 @@ export default function Visitors() {
                         <tbody>
                             {filteredVisitors.length === 0 ? (
                                 <tr>
-                                    <td colSpan="9">
+                                    <td colSpan="10">
                                         <div className="empty-state">No visitors found matching your criteria.</div>
                                     </td>
                                 </tr>
@@ -135,7 +142,7 @@ export default function Visitors() {
                                         <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
                                             {index + 1}
                                         </td>
-                                        <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.id}</span></td>
+                                        <td><span className="badge-id" style={{fontFamily: 'monospace', fontSize:'12px'}}>{v.visitorNo || v.id}</span></td>
                                         <td>
                                             {v.photoData ? 
                                                 <img src={v.photoData} className="avatar-sm" alt="visitor" /> : 
@@ -144,6 +151,16 @@ export default function Visitors() {
                                         </td>
                                         <td><strong>{v.name}</strong><br/><span style={{fontSize:'12px', color:'var(--text-secondary)'}}>{v.company || '-'}</span></td>
                                         <td>{v.phone}</td>
+                                        <td>
+                                            {v.idType ? (
+                                                <div>
+                                                    <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '600', display: 'block' }}>{v.idType}</span>
+                                                    <span style={{ fontSize: '12px', fontFamily: 'monospace' }}>{v.idNumber || '-'}</span>
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>-</span>
+                                            )}
+                                        </td>
                                         <td>{v.hostName}<br/><span style={{fontSize:'12px', color:'var(--text-secondary)'}}>{v.purpose}</span></td>
                                         <td>{formatTime(v.checkInTime)}</td>
                                         <td>{v.checkOutTime ? formatTime(v.checkOutTime) : '-'}</td>

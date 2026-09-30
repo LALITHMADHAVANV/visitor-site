@@ -24,12 +24,20 @@ CREATE TABLE public.users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- QUICK MIGRATION (If you have an existing visitors table, run this):
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "visitorNo" TEXT;
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "idType" TEXT;
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "idNumber" TEXT;
+
 -- 2.2 VISITORS TABLE (All registered & active visitors)
 CREATE TABLE public.visitors (
     id TEXT PRIMARY KEY,                       -- e.g. 'VIS-20260930-0001'
+    "visitorNo" TEXT,                          -- Visitor pass / number
     name TEXT NOT NULL,
     phone TEXT,
     company TEXT,
+    "idType" TEXT,                             -- 'Aadhar Number', 'PAN Number', 'Company ID', etc.
+    "idNumber" TEXT,                           -- Corresponding ID number
     "hostName" TEXT,
     purpose TEXT,
     "photoData" TEXT,                         -- Base64 encoded visitor snapshot

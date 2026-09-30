@@ -26,12 +26,28 @@ export default function Register({ isKiosk = false }) {
     });
 
     const [formData, setFormData] = useState({
+        visitorNo: '',
         name: location.state?.preregData?.name || '',
         phone: '',
         company: location.state?.preregData?.company || '',
+        idType: '',
+        idNumber: '',
         hostName: location.state?.preregData?.hostName || '',
         purpose: location.state?.preregData?.purpose || ''
     });
+
+    useEffect(() => {
+        let isMounted = true;
+        generateVisitorId().then(id => {
+            if (isMounted) {
+                setFormData(prev => ({
+                    ...prev,
+                    visitorNo: prev.visitorNo || id
+                }));
+            }
+        }).catch(err => console.error("Initial visitor ID generation error:", err));
+        return () => { isMounted = false; };
+    }, []);
 
     const capture = useCallback(() => {
         const imageSrc = webcamRef.current.getScreenshot();
@@ -53,13 +69,16 @@ export default function Register({ isKiosk = false }) {
         setSubmitting(true);
         
         try {
-            const visitorId = await generateVisitorId();
+            const visitorId = (formData.visitorNo && formData.visitorNo.trim()) || await generateVisitorId();
             
             const visitor = {
                 id: visitorId,
+                visitorNo: visitorId,
                 name: formData.name.trim(),
                 phone: formData.phone.trim(),
                 company: formData.company.trim(),
+                idType: formData.idType ? formData.idType.trim() : null,
+                idNumber: formData.idNumber ? formData.idNumber.trim() : null,
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData,
@@ -86,12 +105,35 @@ export default function Register({ isKiosk = false }) {
         }
     };
 
-    const handleNextVisitor = () => {
+    const handleNextVisitor = async () => {
         setSuccessQR(null);
         setRegisteredVisitor(null);
         setVisitorStatus('registered');
-        setFormData({ name: '', phone: '', company: '', hostName: '', purpose: '' });
         setPhotoData(null);
+        try {
+            const nextId = await generateVisitorId();
+            setFormData({
+                visitorNo: nextId,
+                name: '',
+                phone: '',
+                company: '',
+                idType: '',
+                idNumber: '',
+                hostName: '',
+                purpose: ''
+            });
+        } catch {
+            setFormData({
+                visitorNo: '',
+                name: '',
+                phone: '',
+                company: '',
+                idType: '',
+                idNumber: '',
+                hostName: '',
+                purpose: ''
+            });
+        }
     };
 
     const [visitorStatus, setVisitorStatus] = useState('registered');
@@ -220,10 +262,16 @@ export default function Register({ isKiosk = false }) {
                                 </p>
                             )}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                <div><strong>Visitor No:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontWeight: 'bold' }}>{registeredVisitor.visitorNo || registeredVisitor.id}</span></div>
                                 <div><strong>Host:</strong> {registeredVisitor.hostName}</div>
                                 <div><strong>Purpose:</strong> {registeredVisitor.purpose}</div>
                                 <div><strong>Phone:</strong> {registeredVisitor.phone || 'N/A'}</div>
                                 <div><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                {registeredVisitor.idType && (
+                                    <div>
+                                        <strong>ID ({registeredVisitor.idType}):</strong> <span style={{ fontFamily: 'monospace' }}>{registeredVisitor.idNumber || 'Recorded'}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -401,18 +449,116 @@ export default function Register({ isKiosk = false }) {
                         
                         {/* Form Fields */}
                         <div className="fields-section">
-                            <div className="form-group">
-                                <label>Full Name *</label>
-                                <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="John Doe" />
+                            {/* Row 1: Visitor No & Full Name */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>
+                                        <i className="fa-solid fa-id-badge" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        Visitor No *
+                                    </label>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input 
+                                            type="text" 
+                                            name="visitorNo" 
+                                            required 
+                                            value={formData.visitorNo} 
+                                            onChange={handleChange} 
+                                            placeholder="e.g. VIS-20260930-0001"
+                                            style={{ paddingRight: '40px', fontFamily: 'monospace', fontWeight: 'bold' }} 
+                                        />
+                                        <button
+                                            type="button"
+                                            title="Generate new Visitor No"
+                                            onClick={async () => {
+                                                const newId = await generateVisitorId();
+                                                setFormData(prev => ({ ...prev, visitorNo: newId }));
+                                            }}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '8px',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: 'var(--accent-primary)',
+                                                cursor: 'pointer',
+                                                padding: '6px',
+                                                fontSize: '14px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
+                                            <i className="fa-solid fa-rotate"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Full Name *</label>
+                                    <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="John Doe" />
+                                </div>
                             </div>
-                            <div className="form-group">
-                                <label>Phone Number *</label>
-                                <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} placeholder="e.g. +1 234 567 8900" />
+
+                            {/* Row 2: Phone & Company */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Phone Number *</label>
+                                    <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} placeholder="e.g. +1 234 567 8900" />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Company Name</label>
+                                    <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Acme Corp (Optional)" />
+                                </div>
                             </div>
-                            <div className="form-group">
-                                <label>Company Name</label>
-                                <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Acme Corp (Optional)" />
+
+                            {/* Row 3: ID Proof Dropdown & ID Number Column */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>
+                                        <i className="fa-solid fa-address-card" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        ID Proof Type
+                                    </label>
+                                    <select 
+                                        name="idType" 
+                                        value={formData.idType} 
+                                        onChange={handleChange}
+                                        className="form-control"
+                                    >
+                                        <option value="">-- Select ID Proof Type --</option>
+                                        <option value="Aadhar Number">Aadhar Number</option>
+                                        <option value="PAN Number">PAN Number</option>
+                                        <option value="Company ID">Company ID</option>
+                                        <option value="Driving License">Driving License</option>
+                                        <option value="Passport">Passport</option>
+                                        <option value="Voter ID">Voter ID</option>
+                                        <option value="Other">Other Government ID</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>
+                                        <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        ID Number
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        name="idNumber" 
+                                        value={formData.idNumber} 
+                                        onChange={handleChange} 
+                                        placeholder={
+                                            formData.idType === 'Aadhar Number' ? 'e.g. 1234 5678 9012' :
+                                            formData.idType === 'PAN Number' ? 'e.g. ABCDE1234F' :
+                                            formData.idType === 'Company ID' ? 'e.g. EMP-9821' :
+                                            formData.idType === 'Driving License' ? 'e.g. DL-1420110012345' :
+                                            formData.idType === 'Passport' ? 'e.g. A1234567' :
+                                            formData.idType === 'Voter ID' ? 'e.g. ABC1234567' :
+                                            'Fill ID / document number'
+                                        } 
+                                    />
+                                </div>
                             </div>
+
+                            {/* Host */}
                             <div className="form-group">
                                 <label>Person to Meet / Host *</label>
                                 <select 
@@ -449,6 +595,8 @@ export default function Register({ isKiosk = false }) {
                                     />
                                 )}
                             </div>
+
+                            {/* Purpose */}
                             <div className="form-group full-width">
                                 <label>Purpose of Visit *</label>
                                 <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
