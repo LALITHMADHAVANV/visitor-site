@@ -1,16 +1,24 @@
+import { supabase } from './supabaseClient';
+
 export const OFFICE_HOSTS = [
-    { name: 'HARI RAGAVAN', chatId: '8238405249', department: 'ENGINEERING' },
-    { name: 'LALITH', chatId: '8853985508', department: 'ADMINISTRATION' },
-    { name: 'RAMRAJ', chatId: '5130860318', department: 'OFFICE' }
+    { name: 'HARI RAGAVAN', department: 'ENGINEERING' },
+    { name: 'LALITH', department: 'ADMINISTRATION' },
+    { name: 'RAMRAJ', department: 'OFFICE' }
 ];
 
-export const getHostChatId = (hostName) => {
+export const getHostChatId = async (hostName) => {
     if (!hostName) return null;
-    const clean = hostName.trim().toLowerCase();
-    const match = OFFICE_HOSTS.find(h => 
-        h.name.toLowerCase() === clean ||
-        clean.includes(h.name.toLowerCase()) ||
-        h.name.toLowerCase().includes(clean)
-    );
-    return match ? match.chatId : null;
+    const clean = hostName.trim().toUpperCase();
+    try {
+        const { data, error } = await supabase
+            .from('hosts')
+            .select('chat_id')
+            .ilike('name', clean)
+            .single();
+        if (error || !data) return null;
+        return data.chat_id;
+    } catch (e) {
+        console.error('Error fetching host chat_id from DB:', e);
+        return null;
+    }
 };

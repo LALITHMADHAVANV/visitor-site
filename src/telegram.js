@@ -29,7 +29,7 @@ export const sendTelegramMessage = async (visitorOrName, hostNameArg, extraArg) 
         }
     }
 
-    const targetChatId = hostChatId || getHostChatId(hostName) || defaultChatId;
+    const targetChatId = hostChatId || await getHostChatId(hostName) || defaultChatId;
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const message = `🔔 *Visitor Arrival Alert*\n\nHello *${hostName}*,\nYour visitor *${visitorName}*${company ? ` from *${company}*` : ''} has arrived and checked in to see you.\n\n📋 *Purpose:* ${purpose || 'Meeting'}\n🆔 *Visitor ID:* ${id || '-'}\n⏰ *Time:* ${timeStr}`;
