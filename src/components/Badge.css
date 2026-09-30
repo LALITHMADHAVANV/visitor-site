@@ -24,56 +24,67 @@
     .badge-card {
         width: 3.375in;
         height: 2.125in; /* Standard CR80 badge size */
-        border: 1px solid #ccc;
+        border: 1.5px solid #0f172a;
         border-radius: 8px;
-        padding: 16px;
+        padding: 10px 12px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        background: white !important;
-        color: black !important;
-        font-family: sans-serif;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         page-break-after: always;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .badge-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid #3b82f6;
-        padding-bottom: 8px;
+        border-bottom: 2px solid #2563eb;
+        padding-bottom: 4px;
     }
 
     .badge-brand {
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        color: #3b82f6 !important;
+        gap: 6px;
+        font-weight: 800;
+        font-size: 13px;
+        color: #2563eb !important;
+    }
+
+    .badge-brand i {
+        font-size: 14px;
+        color: #2563eb !important;
     }
 
     .badge-title {
-        font-size: 16px;
+        font-size: 11px;
         font-weight: 800;
-        letter-spacing: 2px;
-        color: #64748b !important;
+        letter-spacing: 1.5px;
+        color: #475569 !important;
     }
 
     .badge-body {
         display: flex;
-        gap: 16px;
-        margin-top: 12px;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        margin-bottom: 4px;
         flex: 1;
     }
 
     .badge-photo-container {
-        width: 1in;
-        height: 1in;
-        border-radius: 4px;
+        width: 0.85in;
+        height: 0.85in;
+        border-radius: 6px;
         overflow: hidden;
         flex-shrink: 0;
         background: #f1f5f9 !important;
+        border: 1px solid #cbd5e1;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -86,56 +97,115 @@
     }
 
     .badge-photo-placeholder {
-        font-size: 32px;
+        font-size: 26px;
         font-weight: bold;
-        color: #cbd5e1 !important;
+        color: #94a3b8 !important;
     }
 
     .badge-details {
         flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        justify-content: center;
+        gap: 2px;
     }
 
     .visitor-name {
         margin: 0;
-        font-size: 20px;
+        font-size: 14px;
         font-weight: 700;
         color: #0f172a !important;
         line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .visitor-company {
         margin: 0;
-        font-size: 14px;
+        font-size: 10px;
+        color: #475569 !important;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .host-info, .date-info {
+        margin-top: 2px;
+        font-size: 9.5px;
+        display: flex;
+        gap: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .label {
         color: #64748b !important;
         font-weight: 500;
     }
 
-    .host-info, .date-info {
-        margin-top: 6px;
-        font-size: 12px;
-        display: flex;
-        gap: 4px;
-    }
-
-    .label {
-        color: #94a3b8 !important;
-    }
     .value {
-        color: #334155 !important;
+        color: #0f172a !important;
         font-weight: 600;
     }
 
+    .badge-exit-qr {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        gap: 2px;
+        padding-left: 4px;
+    }
+
+    .badge-qr-box {
+        background: #ffffff !important;
+        padding: 3px;
+        border: 1px solid #0f172a;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .badge-qr-box svg {
+        display: block;
+    }
+
+    .badge-qr-tag {
+        font-size: 7px;
+        font-weight: 800;
+        color: #dc2626 !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-top: 1px;
+    }
+
     .badge-footer {
-        text-align: right;
-        margin-top: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px dashed #cbd5e1;
+        padding-top: 3px;
+        margin-top: 2px;
+    }
+
+    .badge-notice {
+        font-size: 7.5px;
+        font-weight: 600;
+        color: #64748b !important;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
     }
 
     .badge-id {
         font-family: monospace;
-        font-size: 10px;
-        color: #94a3b8 !important;
+        font-size: 9px;
+        font-weight: 700;
+        color: #0f172a !important;
     }
 }

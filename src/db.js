@@ -1,29 +1,55 @@
 import { supabase } from './supabaseClient';
 
+function normalizeVisitor(v) {
+    if (!v) return v;
+    if (v.hostname !== undefined && v.hostName === undefined) {
+        v.hostName = v.hostname;
+    }
+    return v;
+}
+
 export const db = {
     visitors: {
         async add(visitor) {
-            const { data, error } = await supabase.from('visitors').insert([visitor]).select();
+            let { data, error } = await supabase.from('visitors').insert([visitor]).select();
+            if (error && (error.code === 'PGRST204' || error.message?.includes('hostName'))) {
+                const fallbackVisitor = { ...visitor, hostname: visitor.hostName };
+                delete fallbackVisitor.hostName;
+                const retry = await supabase.from('visitors').insert([fallbackVisitor]).select();
+                if (retry.error) throw retry.error;
+                return normalizeVisitor(retry.data[0]);
+            }
             if (error) throw error;
-            return data[0];
+            return normalizeVisitor(data[0]);
         },
         async toArray() {
             const { data, error } = await supabase.from('visitors').select('*');
             if (error) throw error;
-            return data;
+            return (data || []).map(normalizeVisitor);
         },
         async get(id) {
-            const { data, error } = await supabase.from('visitors').select('*').eq('id', id).single();
+            const targetId = typeof id === 'object' && id !== null ? id.id : id;
+            const { data, error } = await supabase.from('visitors').select('*').eq('id', targetId).single();
             if (error) {
                 if (error.code === 'PGRST116') return null; // Not found
                 throw error;
             }
-            return data;
+            return normalizeVisitor(data);
         },
         async update(id, changes) {
-            const { data, error } = await supabase.from('visitors').update(changes).eq('id', id).select();
+            let updatePayload = { ...changes };
+            let { data, error } = await supabase.from('visitors').update(updatePayload).eq('id', id).select();
+            if (error && (error.code === 'PGRST204' || error.message?.includes('hostName'))) {
+                if ('hostName' in updatePayload) {
+                    updatePayload.hostname = updatePayload.hostName;
+                    delete updatePayload.hostName;
+                }
+                const retry = await supabase.from('visitors').update(updatePayload).eq('id', id).select();
+                if (retry.error) throw retry.error;
+                return normalizeVisitor(retry.data[0]);
+            }
             if (error) throw error;
-            return data[0];
+            return normalizeVisitor(data[0]);
         },
         async delete(id) {
             const { error } = await supabase.from('visitors').delete().eq('id', id);
@@ -35,13 +61,13 @@ export const db = {
                 equals: async (value) => {
                     const { data, error } = await supabase.from('visitors').select('*').eq(field, value);
                     if (error) throw error;
-                    return data;
+                    return (data || []).map(normalizeVisitor);
                 },
                 startsWith: {
                     toArray: async (value) => {
                         const { data, error } = await supabase.from('visitors').select('*').like(field, `${value}%`);
                         if (error) throw error;
-                        return data;
+                        return (data || []).map(normalizeVisitor);
                     }
                 }
             };

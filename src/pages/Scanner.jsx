@@ -11,30 +11,37 @@ export default function QRScanner() {
 
     const handleScan = useCallback(async (result) => {
         if (!result || !result[0]) return;
-        const qrCode = result[0].rawValue;
+        const rawCode = result[0].rawValue;
         
         // Prevent rapid re-scanning
         if (!isScanning) return;
         setIsScanning(false);
         
         try {
+            let visitorId = rawCode ? rawCode.trim() : '';
+            let isExplicitCheckout = false;
+
+            if (visitorId.includes('id=')) {
+                try {
+                    const parsedUrl = new URL(visitorId, window.location.origin);
+                    const extractedId = parsedUrl.searchParams.get('id');
+                    const action = parsedUrl.searchParams.get('action');
+                    if (extractedId) visitorId = extractedId;
+                    if (action === 'checkout') isExplicitCheckout = true;
+                } catch (e) {
+                    const idMatch = visitorId.match(/[?&]id=([^&]+)/);
+                    if (idMatch) visitorId = idMatch[1];
+                    if (visitorId.includes('action=checkout')) isExplicitCheckout = true;
+                }
+            }
+
             // Find visitor
-            const visitor = await db.visitors.get({ id: qrCode });
+            const visitor = await db.visitors.get(visitorId);
             
             if (visitor) {
-                if (visitor.status === 'registered' || visitor.status === 'expected') {
-                    // Check In
-                    await db.visitors.update(qrCode, {
-                        status: 'checked-in',
-                        checkInTime: new Date().toISOString()
-                    });
-                    
-                    setScanStatus('success-in');
-                    setMessage(`Checked IN: ${visitor.name}`);
-                    
-                } else if (visitor.status === 'checked-in') {
+                if (isExplicitCheckout || visitor.status === 'checked-in') {
                     // Check Out
-                    await db.visitors.update(qrCode, {
+                    await db.visitors.update(visitorId, {
                         status: 'checked-out',
                         checkOutTime: new Date().toISOString()
                     });
@@ -42,14 +49,24 @@ export default function QRScanner() {
                     setScanStatus('success-out');
                     setMessage(`Checked OUT: ${visitor.name}`);
                     
+                } else if (visitor.status === 'registered' || visitor.status === 'expected') {
+                    // Check In
+                    await db.visitors.update(visitorId, {
+                        status: 'checked-in',
+                        checkInTime: new Date().toISOString()
+                    });
+                    
+                    setScanStatus('success-in');
+                    setMessage(`Checked IN: ${visitor.name}`);
+                    
                 } else if (visitor.status === 'checked-out') {
                     // Error: Already left
                     setScanStatus('error');
-                    setMessage(`Error: Pass expired for ${visitor.name}`);
+                    setMessage(`Notice: Pass expired / already left (${visitor.name})`);
                 }
             } else {
                 setScanStatus('error');
-                setMessage(`Error: Unknown Visitor ID (${qrCode})`);
+                setMessage(`Error: Unknown Visitor ID (${visitorId})`);
             }
         } catch (err) {
             console.error("Scanner Error", err);
