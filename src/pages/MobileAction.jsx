@@ -217,49 +217,81 @@ export default function MobileAction() {
                                 </p>
                             )}
 
-                            <div style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: 'auto 1fr', 
-                                rowGap: '6px', 
-                                columnGap: '12px', 
-                                fontSize: '13px', 
-                                marginTop: '10px',
-                                background: '#f8fafc',
-                                padding: '12px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid #f1f5f9'
-                            }}>
-                                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Pass ID:</span>
-                                <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--accent-primary)' }}>{visitor.visitorNo || visitor.id}</span>
+                            {(() => {
+                                const vehicleNo = (() => {
+                                    if (visitor.vehicleNo && visitor.vehicleNo.trim() !== '') return visitor.vehicleNo;
+                                    if (visitor.purpose) {
+                                        const match = visitor.purpose.match(/\[Vehicle:\s*(.*?)\]/i);
+                                        if (match && match[1]) return match[1].trim();
+                                    }
+                                    return visitor.hasVehicle === 'yes' ? 'Yes' : (visitor.vehicleNo || 'No');
+                                })();
 
-                                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Host:</span>
-                                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{visitor.hostName || '-'}</span>
+                                const cleanPurpose = visitor.purpose
+                                    ? visitor.purpose
+                                        .replace(/\[ID:.*?\]/g, '')
+                                        .replace(/\[Vehicle:.*?\]/g, '')
+                                        .replace(/\[Extra:.*?\]/g, '')
+                                        .trim() || visitor.purpose
+                                    : '-';
 
-                                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Purpose:</span>
-                                <span style={{ color: 'var(--text-primary)' }}>{visitor.purpose || '-'}</span>
-
-                                {visitor.idType && (
-                                    <>
-                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>{visitor.idType}:</span>
-                                        <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{visitor.idNumber || '-'}</span>
-                                    </>
-                                )}
-
-                                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Status:</span>
-                                <div>
-                                    <span style={{
-                                        padding: '2px 8px',
-                                        borderRadius: '6px',
-                                        fontSize: '11px',
-                                        fontWeight: '700',
-                                        textTransform: 'uppercase',
-                                        background: visitor.status === 'checked-in' ? 'rgba(5, 150, 105, 0.15)' : visitor.status === 'checked-out' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(37, 99, 235, 0.15)',
-                                        color: visitor.status === 'checked-in' ? 'var(--success)' : visitor.status === 'checked-out' ? '#475569' : 'var(--accent-primary)'
+                                return (
+                                    <div style={{ 
+                                        display: 'grid', 
+                                        gridTemplateColumns: 'auto 1fr', 
+                                        rowGap: '6px', 
+                                        columnGap: '12px', 
+                                        fontSize: '13px', 
+                                        marginTop: '10px',
+                                        background: '#f8fafc',
+                                        padding: '12px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid #f1f5f9'
                                     }}>
-                                        {visitor.status === 'checked-in' ? '● Checked In' : visitor.status === 'checked-out' ? '● Checked Out' : '● Registered'}
-                                    </span>
-                                </div>
-                            </div>
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Pass ID:</span>
+                                        <span style={{ fontFamily: 'monospace', fontWeight: '700', color: 'var(--accent-primary)' }}>{visitor.visitorNo || visitor.id}</span>
+
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Host:</span>
+                                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{visitor.hostName || '-'}</span>
+
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Vehicle No:</span>
+                                        <span style={{ 
+                                            fontFamily: 'monospace', 
+                                            fontWeight: '700', 
+                                            color: (vehicleNo && vehicleNo.toLowerCase() !== 'no') ? 'var(--accent-primary)' : 'var(--text-secondary)' 
+                                        }}>
+                                            {vehicleNo}
+                                        </span>
+
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Purpose:</span>
+                                        <span style={{ color: 'var(--text-primary)' }}>{cleanPurpose}</span>
+
+                                        {visitor.hasExtraMembers === 'yes' && (
+                                            <>
+                                                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Extra Members:</span>
+                                                <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                                                    {visitor.extraMembersCount || 1} Member(s) {visitor.extraMembersIds ? `(${visitor.extraMembersIds})` : ''}
+                                                </span>
+                                            </>
+                                        )}
+
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Status:</span>
+                                        <div>
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                fontSize: '11px',
+                                                fontWeight: '700',
+                                                textTransform: 'uppercase',
+                                                background: visitor.status === 'checked-in' ? 'rgba(5, 150, 105, 0.15)' : visitor.status === 'checked-out' ? 'rgba(100, 116, 139, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                                                color: visitor.status === 'checked-in' ? 'var(--success)' : visitor.status === 'checked-out' ? '#475569' : 'var(--accent-primary)'
+                                            }}>
+                                                {visitor.status === 'checked-in' ? '● Checked In' : visitor.status === 'checked-out' ? '● Checked Out' : '● Registered'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

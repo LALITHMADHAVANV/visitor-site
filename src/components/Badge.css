@@ -7,42 +7,69 @@
     height: 2.125in; /* Standard CR80 badge dimensions */
     border: 1.5px solid #0f172a;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 0;
     box-sizing: border-box;
     display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    gap: 8px;
+    flex-direction: column;
     background: #ffffff !important;
     color: #000000 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     overflow: hidden;
 }
 
-/* Left Column: Company Logo at top + Exit QR at bottom */
+/* Header Title Band */
+.badge-header-band {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-align: center;
+    padding: 2.5px 0;
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex-shrink: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Main Body: Columns */
+.badge-main-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 4px 8px 5px 8px;
+    gap: 8px;
+    box-sizing: border-box;
+}
+
+/* Left Column: Company Logo at top + Exit QR right below it (Minimal gap) */
 .badge-left-col {
-    width: 90px;
-    min-width: 90px;
+    width: 86px;
+    min-width: 86px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     height: 100%;
     box-sizing: border-box;
-    padding: 2px 2px 2px 0;
+    padding: 0;
+    gap: 4px; /* Reduced gap between company logo and QR */
 }
 
 .badge-company-logo-area {
     width: 100%;
-    height: 42px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .badge-logo-img {
-    max-width: 88px;
-    max-height: 40px;
+    max-width: 84px;
+    max-height: 34px;
     object-fit: contain;
     display: block;
 }
@@ -81,34 +108,34 @@
 
 .badge-qr-meta {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    margin-top: 1px;
+    gap: 1px;
+    margin-top: 2px;
     width: 100%;
 }
 
 .badge-qr-label {
-    font-size: 8px;
+    font-size: 7.5px;
     font-weight: 800;
     color: #0f172a !important;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
     line-height: 1;
 }
 
 .badge-qr-id {
     font-family: monospace;
-    font-size: 6.5px;
+    font-size: 7px;
     font-weight: 700;
     color: #475569 !important;
     line-height: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: -0.2px;
     white-space: nowrap;
 }
 
-/* Right Column: Name, Company, Visiting Person, Purpose, Time & Date */
+/* Right Column: Name, Company, Visiting Person, Vehicle No, Purpose, Time & Date */
 .badge-right-col {
     flex: 1;
     min-width: 0;
@@ -116,8 +143,8 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 7px; /* Compact, balanced spacing between rows */
-    padding: 4px 0 4px 10px;
+    gap: 4px; /* Compact, balanced spacing between rows */
+    padding: 2px 0 2px 8px;
     border-left: 1.5px solid #0f172a;
     box-sizing: border-box;
 }
@@ -125,14 +152,14 @@
 .badge-field-row {
     display: flex;
     align-items: baseline;
-    gap: 6px; /* Clean, natural gap between label and data */
-    line-height: 1.3;
+    gap: 5px;
+    line-height: 1.22;
     white-space: nowrap;
     overflow: hidden;
 }
 
 .badge-field-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: #475569 !important;
     flex-shrink: 0;
@@ -143,21 +170,27 @@
     min-width: 0;
     font-weight: 600;
     color: #0f172a !important;
-    font-size: 11px;
+    font-size: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .badge-name-val {
-    font-size: 14px;
+    font-size: 12.5px;
     font-weight: 800;
     color: #000000 !important;
     text-transform: capitalize;
 }
 
+.badge-vehicle-val {
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 10px;
+}
+
 .badge-date-val {
-    font-size: 9.5px;
+    font-size: 8.5px;
     font-weight: 600;
     color: #0f172a !important;
     white-space: nowrap;
