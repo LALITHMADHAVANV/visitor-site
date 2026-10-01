@@ -16,31 +16,26 @@ export const THERMAL_80MM_PAGE_STYLE = `
     html, body {
       margin: 0 !important;
       padding: 0 !important;
-      width: 80mm !important;
-      min-width: 80mm !important;
-      max-width: 80mm !important;
+      width: 100% !important;
       background: #ffffff !important;
     }
     .badge-print-container {
       display: block !important;
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 80mm !important;
-      min-width: 80mm !important;
-      max-width: 80mm !important;
+      position: relative !important;
+      width: 100% !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 0 0 5mm 0 !important;
       background: #ffffff !important;
     }
     .badge-card-80mm {
-      width: 80mm !important;
-      min-width: 80mm !important;
-      max-width: 80mm !important;
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
       margin: 0 !important;
-      border: 1.5px solid #000000 !important;
+      border: 2px solid #000000 !important;
       border-radius: 0px !important;
       box-shadow: none !important;
+      box-sizing: border-box !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       page-break-after: always;
@@ -156,14 +151,14 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                             <div className="badge-qr-box">
                                 <QRCodeSVG 
                                     value={exitQrUrl} 
-                                    size={82} 
+                                    size={96} 
                                     level="H" 
                                     fgColor="#000000"
                                     bgColor="#ffffff"
                                     imageSettings={{
                                         src: logoSrc,
-                                        height: 22,
-                                        width: 22,
+                                        height: 26,
+                                        width: 26,
                                         excavate: true
                                     }}
                                 />
