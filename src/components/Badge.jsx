@@ -71,7 +71,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <div className="badge-qr-box">
                             <QRCodeSVG 
                                 value={exitQrUrl} 
-                                size={88} 
+                                size={78} 
                                 level="M" 
                                 fgColor="#000000"
                                 bgColor="#ffffff"
@@ -87,41 +87,36 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                 {/* Right Section: Name, Company, Visiting Person, Purpose, Time & Date */}
                 <div className="badge-right-col">
                     <div className="badge-field-row">
-                        <span className="badge-field-label">Name</span>
-                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-label">Name:</span>
                         <span className="badge-field-val badge-name-val" title={visitor.name}>
                             {visitor.name || '-'}
                         </span>
                     </div>
 
                     <div className="badge-field-row">
-                        <span className="badge-field-label">Company</span>
-                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-label">Company:</span>
                         <span className="badge-field-val" title={visitor.company}>
                             {visitor.company || '-'}
                         </span>
                     </div>
 
                     <div className="badge-field-row">
-                        <span className="badge-field-label">Visiting Person</span>
-                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-label">Visiting Person:</span>
                         <span className="badge-field-val" title={visitor.hostName || visitor.hostname}>
                             {visitor.hostName || visitor.hostname || '-'}
                         </span>
                     </div>
 
                     <div className="badge-field-row">
-                        <span className="badge-field-label">Purpose</span>
-                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-label">Purpose:</span>
                         <span className="badge-field-val" title={cleanPurpose}>
                             {cleanPurpose || '-'}
                         </span>
                     </div>
 
                     <div className="badge-field-row">
-                        <span className="badge-field-label">Time & Date</span>
-                        <span className="badge-field-sep">:</span>
-                        <span className="badge-field-val">
+                        <span className="badge-field-label">Time & Date:</span>
+                        <span className="badge-field-val badge-date-val">
                             {formattedDateTime}
                         </span>
                     </div>
