@@ -8,12 +8,35 @@ function normalizeVisitor(v) {
     if (!v.visitorNo) {
         v.visitorNo = v.id;
     }
+    if (v.photo_data && !v.photoData) {
+        v.photoData = v.photo_data;
+    }
+    if (v.photo && !v.photoData) {
+        v.photoData = v.photo;
+    }
     // If idType / idNumber is not in columns, extract from purpose tag [ID: Type - Number]
     if ((!v.idType || !v.idNumber) && v.purpose && v.purpose.includes('[ID:')) {
         const match = v.purpose.match(/\[ID:\s*([^\]\-]+?)(?:\s*-\s*([^\]]+))?\]/);
         if (match) {
             if (!v.idType) v.idType = match[1].trim();
             if (!v.idNumber && match[2]) v.idNumber = match[2].trim();
+        }
+    }
+    // If vehicleNo is not in columns, extract from purpose tag [Vehicle: ...]
+    if (!v.vehicleNo && v.purpose && v.purpose.includes('[Vehicle:')) {
+        const match = v.purpose.match(/\[Vehicle:\s*([^\]]+)\]/);
+        if (match) {
+            v.vehicleNo = match[1].trim();
+            v.hasVehicle = v.vehicleNo.toLowerCase() === 'no' ? 'no' : 'yes';
+        }
+    }
+    // If extra members not in columns, extract from purpose tag [Extra: ...]
+    if (!v.extraMembersIds && v.purpose && v.purpose.includes('[Extra:')) {
+        const match = v.purpose.match(/\[Extra:\s*(\d+)\s*Members?\s*(?:\(([^\]]+)\))?\]/);
+        if (match) {
+            v.hasExtraMembers = 'yes';
+            v.extraMembersCount = parseInt(match[1]) || 0;
+            v.extraMembersIds = match[2] ? match[2].trim() : '';
         }
     }
     return v;
@@ -30,15 +53,26 @@ export const db = {
                     delete fallbackVisitor.hostName;
                 }
                 
-                // If idType or idNumber are present, embed them nicely in purpose so data is never lost
+                // Embed ID tag
                 const idTag = visitor.idType ? `[ID: ${visitor.idType}${visitor.idNumber ? ` - ${visitor.idNumber}` : ''}]` : '';
-                if (idTag && (!fallbackVisitor.purpose || !fallbackVisitor.purpose.includes('[ID:'))) {
-                    fallbackVisitor.purpose = fallbackVisitor.purpose ? `${fallbackVisitor.purpose} ${idTag}` : idTag;
+                // Embed Vehicle tag
+                const vehicleTag = visitor.vehicleNo && visitor.vehicleNo !== 'No' ? `[Vehicle: ${visitor.vehicleNo}]` : (visitor.hasVehicle === 'no' ? '[Vehicle: No]' : '');
+                // Embed Extra members tag
+                const extraTag = visitor.hasExtraMembers === 'yes' ? `[Extra: ${visitor.extraMembersCount || 1} Members${visitor.extraMembersIds ? ` (${visitor.extraMembersIds})` : ''}]` : '';
+
+                const metaTags = [idTag, vehicleTag, extraTag].filter(Boolean).join(' ');
+                if (metaTags && (!fallbackVisitor.purpose || !fallbackVisitor.purpose.includes('['))) {
+                    fallbackVisitor.purpose = fallbackVisitor.purpose ? `${fallbackVisitor.purpose} ${metaTags}` : metaTags;
                 }
 
                 delete fallbackVisitor.visitorNo;
                 delete fallbackVisitor.idType;
                 delete fallbackVisitor.idNumber;
+                delete fallbackVisitor.hasVehicle;
+                delete fallbackVisitor.vehicleNo;
+                delete fallbackVisitor.hasExtraMembers;
+                delete fallbackVisitor.extraMembersCount;
+                delete fallbackVisitor.extraMembersIds;
 
                 const retry = await supabase.from('visitors').insert([fallbackVisitor]).select();
                 if (retry.error) throw retry.error;
@@ -47,7 +81,12 @@ export const db = {
                     ...saved,
                     visitorNo: visitor.visitorNo || saved.id,
                     idType: visitor.idType || null,
-                    idNumber: visitor.idNumber || null
+                    idNumber: visitor.idNumber || null,
+                    hasVehicle: visitor.hasVehicle || 'no',
+                    vehicleNo: visitor.vehicleNo || 'No',
+                    hasExtraMembers: visitor.hasExtraMembers || 'no',
+                    extraMembersCount: visitor.extraMembersCount || 0,
+                    extraMembersIds: visitor.extraMembersIds || null
                 };
             }
             if (error) throw error;

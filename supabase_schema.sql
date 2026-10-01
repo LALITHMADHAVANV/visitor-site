@@ -24,10 +24,15 @@ CREATE TABLE public.users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- QUICK MIGRATION (If you have an existing visitors table, run this):
+-- QUICK MIGRATION (If you have an existing visitors table, run this in Supabase SQL Editor):
 -- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "visitorNo" TEXT;
 -- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "idType" TEXT;
 -- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "idNumber" TEXT;
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "hasVehicle" TEXT DEFAULT 'no';
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "vehicleNo" TEXT;
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "hasExtraMembers" TEXT DEFAULT 'no';
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "extraMembersCount" INTEGER DEFAULT 0;
+-- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "extraMembersIds" TEXT;
 
 -- 2.2 VISITORS TABLE (All registered & active visitors)
 CREATE TABLE public.visitors (
@@ -38,6 +43,11 @@ CREATE TABLE public.visitors (
     company TEXT,
     "idType" TEXT,                             -- 'Aadhar Number', 'PAN Number', 'Company ID', etc.
     "idNumber" TEXT,                           -- Corresponding ID number
+    "hasVehicle" TEXT DEFAULT 'no',            -- 'yes' or 'no'
+    "vehicleNo" TEXT,                          -- Vehicle registration number (or 'No')
+    "hasExtraMembers" TEXT DEFAULT 'no',       -- 'yes' or 'no'
+    "extraMembersCount" INTEGER DEFAULT 0,     -- Number of accompanying extra members
+    "extraMembersIds" TEXT,                    -- Visitor IDs of accompanying extra members
     "hostName" TEXT,
     purpose TEXT,
     "photoData" TEXT,                         -- Base64 encoded visitor snapshot

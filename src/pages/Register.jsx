@@ -32,6 +32,11 @@ export default function Register({ isKiosk = false }) {
         company: location.state?.preregData?.company || '',
         idType: '',
         idNumber: '',
+        hasVehicle: 'no',
+        vehicleNo: 'No',
+        hasExtraMembers: 'no',
+        extraMembersCount: '',
+        extraMembersIds: '',
         hostName: location.state?.preregData?.hostName || '',
         purpose: location.state?.preregData?.purpose || ''
     });
@@ -60,12 +65,68 @@ export default function Register({ isKiosk = false }) {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
+        if (name === 'phone') {
+            // Strictly digits only, max 10 digits
+            const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, phone: digitsOnly }));
+            return;
+        }
+        if (name === 'hasVehicle') {
+            setFormData(prev => ({
+                ...prev,
+                hasVehicle: value,
+                vehicleNo: value === 'no' ? 'No' : (prev.vehicleNo === 'No' ? '' : prev.vehicleNo)
+            }));
+            return;
+        }
+        if (name === 'hasExtraMembers') {
+            setFormData(prev => ({
+                ...prev,
+                hasExtraMembers: value,
+                extraMembersCount: value === 'no' ? '' : prev.extraMembersCount,
+                extraMembersIds: value === 'no' ? '' : prev.extraMembersIds
+            }));
+            return;
+        }
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (submitting) return;
+
+        // 1. Phone number validation: strictly exactly 10 digits
+        const phoneDigits = formData.phone.trim();
+        if (phoneDigits.length !== 10) {
+            alert(`Phone number must be exactly 10 digits. Currently entered: ${phoneDigits.length} digits.`);
+            return;
+        }
+
+        // 2. ID Proof validation: if type chosen, number is required
+        if (formData.idType && !formData.idNumber.trim()) {
+            alert(`Please enter the ID Number for the selected ID Proof Type (${formData.idType}).`);
+            return;
+        }
+
+        // 3. Vehicle validation
+        if (formData.hasVehicle === 'yes' && (!formData.vehicleNo.trim() || formData.vehicleNo === 'No')) {
+            alert("Please enter the vehicle registration number.");
+            return;
+        }
+
+        // 4. Extra Members validation
+        if (formData.hasExtraMembers === 'yes') {
+            const count = parseInt(formData.extraMembersCount);
+            if (!count || count < 1) {
+                alert("Please enter how many extra members are accompanying.");
+                return;
+            }
+            if (!formData.extraMembersIds.trim()) {
+                alert(`Mandatory: Please enter the Visitor ID number(s) for the ${count} accompanying member(s).`);
+                return;
+            }
+        }
+
         setSubmitting(true);
         
         try {
@@ -75,10 +136,15 @@ export default function Register({ isKiosk = false }) {
                 id: visitorId,
                 visitorNo: visitorId,
                 name: formData.name.trim(),
-                phone: formData.phone.trim(),
+                phone: phoneDigits,
                 company: formData.company.trim(),
                 idType: formData.idType ? formData.idType.trim() : null,
                 idNumber: formData.idNumber ? formData.idNumber.trim() : null,
+                hasVehicle: formData.hasVehicle,
+                vehicleNo: formData.hasVehicle === 'yes' ? formData.vehicleNo.trim() : 'No',
+                hasExtraMembers: formData.hasExtraMembers,
+                extraMembersCount: formData.hasExtraMembers === 'yes' ? (parseInt(formData.extraMembersCount) || 0) : 0,
+                extraMembersIds: formData.hasExtraMembers === 'yes' ? formData.extraMembersIds.trim() : null,
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData,
@@ -119,6 +185,11 @@ export default function Register({ isKiosk = false }) {
                 company: '',
                 idType: '',
                 idNumber: '',
+                hasVehicle: 'no',
+                vehicleNo: 'No',
+                hasExtraMembers: 'no',
+                extraMembersCount: '',
+                extraMembersIds: '',
                 hostName: '',
                 purpose: ''
             });
@@ -130,6 +201,11 @@ export default function Register({ isKiosk = false }) {
                 company: '',
                 idType: '',
                 idNumber: '',
+                hasVehicle: 'no',
+                vehicleNo: 'No',
+                hasExtraMembers: 'no',
+                extraMembersCount: '',
+                extraMembersIds: '',
                 hostName: '',
                 purpose: ''
             });
@@ -266,6 +342,8 @@ export default function Register({ isKiosk = false }) {
                                 <div><strong>Host:</strong> {registeredVisitor.hostName}</div>
                                 <div><strong>Purpose:</strong> {registeredVisitor.purpose}</div>
                                 <div><strong>Phone:</strong> {registeredVisitor.phone || 'N/A'}</div>
+                                <div><strong>Vehicle:</strong> <span style={{ fontWeight: '600', color: registeredVisitor.vehicleNo && registeredVisitor.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{registeredVisitor.vehicleNo || 'No'}</span></div>
+                                <div><strong>Extra Members:</strong> <span style={{ fontWeight: '600', color: registeredVisitor.hasExtraMembers === 'yes' ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>{registeredVisitor.hasExtraMembers === 'yes' ? `${registeredVisitor.extraMembersCount} (${registeredVisitor.extraMembersIds || 'IDs recorded'})` : 'No'}</span></div>
                                 <div><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                 {registeredVisitor.idType && (
                                     <div>
@@ -440,9 +518,13 @@ export default function Register({ isKiosk = false }) {
                             </div>
                             <div className="camera-actions" style={{ marginTop: '16px' }}>
                                 {!photoData ? (
-                                    <button type="button" className="btn btn-secondary btn-sm" onClick={capture}>Take Photo</button>
+                                    <button type="button" className="btn btn-capture-large" onClick={capture}>
+                                        <i className="fa-solid fa-camera"></i> Capture Photo
+                                    </button>
                                 ) : (
-                                    <button type="button" className="btn btn-outline btn-sm" onClick={retake}>Retake</button>
+                                    <button type="button" className="btn btn-retake-large" onClick={retake}>
+                                        <i className="fa-solid fa-rotate-left"></i> Retake Photo
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -501,8 +583,35 @@ export default function Register({ isKiosk = false }) {
                             {/* Row 2: Phone & Company */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Phone Number *</label>
-                                    <input type="tel" name="phone" required value={formData.phone} onChange={handleChange} placeholder="e.g. +1 234 567 8900" />
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span>Phone Number *</span>
+                                        <span style={{ 
+                                            fontSize: '11px', 
+                                            fontWeight: '600', 
+                                            color: formData.phone.length === 10 ? '#10b981' : '#f59e0b',
+                                            backgroundColor: formData.phone.length === 10 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px'
+                                        }}>
+                                            {formData.phone.length}/10 Digits
+                                        </span>
+                                    </label>
+                                    <input 
+                                        type="tel" 
+                                        name="phone" 
+                                        required 
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        pattern="[0-9]{10}"
+                                        value={formData.phone} 
+                                        onChange={handleChange} 
+                                        placeholder="Enter 10-digit mobile number" 
+                                    />
+                                    {formData.phone.length > 0 && formData.phone.length < 10 && (
+                                        <span style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'block' }}>
+                                            Must be exactly 10 digits ({10 - formData.phone.length} more needed)
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="form-group">
@@ -538,11 +647,12 @@ export default function Register({ isKiosk = false }) {
                                 <div className="form-group">
                                     <label>
                                         <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        ID Number
+                                        ID Number {formData.idType ? '*' : ''}
                                     </label>
                                     <input 
                                         type="text" 
                                         name="idNumber" 
+                                        required={!!formData.idType}
                                         value={formData.idNumber} 
                                         onChange={handleChange} 
                                         placeholder={
@@ -552,10 +662,105 @@ export default function Register({ isKiosk = false }) {
                                             formData.idType === 'Driving License' ? 'e.g. DL-1420110012345' :
                                             formData.idType === 'Passport' ? 'e.g. A1234567' :
                                             formData.idType === 'Voter ID' ? 'e.g. ABC1234567' :
-                                            'Fill ID / document number'
+                                            (formData.idType ? 'Enter ID document number' : 'Select ID Type first')
                                         } 
                                     />
                                 </div>
+                            </div>
+
+                            {/* Row 4: Vehicle Details (Placed immediately after ID Proof) */}
+                            <div className="form-row">
+                                <div className="form-group" style={{ flex: '1' }}>
+                                    <label>
+                                        <i className="fa-solid fa-car" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        Vehicle Coming? *
+                                    </label>
+                                    <select
+                                        name="hasVehicle"
+                                        value={formData.hasVehicle}
+                                        onChange={handleChange}
+                                        className="form-control"
+                                    >
+                                        <option value="no">No</option>
+                                        <option value="yes">Yes</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group" style={{ flex: '1.5' }}>
+                                    <label>
+                                        <i className="fa-solid fa-barcode" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        Vehicle Number {formData.hasVehicle === 'yes' ? '*' : ''}
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        name="vehicleNo" 
+                                        value={formData.vehicleNo} 
+                                        onChange={handleChange}
+                                        disabled={formData.hasVehicle === 'no'}
+                                        required={formData.hasVehicle === 'yes'}
+                                        placeholder={formData.hasVehicle === 'yes' ? 'e.g. TN-01-AB-1234' : 'Disabled (No Vehicle)'}
+                                        style={{
+                                            backgroundColor: formData.hasVehicle === 'no' ? 'rgba(255, 255, 255, 0.05)' : 'inherit',
+                                            cursor: formData.hasVehicle === 'no' ? 'not-allowed' : 'text',
+                                            opacity: formData.hasVehicle === 'no' ? 0.65 : 1
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Row 5: Extra Accompanying Members */}
+                            <div className="form-row" style={{ alignItems: 'flex-start' }}>
+                                <div className="form-group" style={{ flex: formData.hasExtraMembers === 'yes' ? '1' : '1' }}>
+                                    <label>
+                                        <i className="fa-solid fa-users" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                        Extra Members? *
+                                    </label>
+                                    <select
+                                        name="hasExtraMembers"
+                                        value={formData.hasExtraMembers}
+                                        onChange={handleChange}
+                                        className="form-control"
+                                    >
+                                        <option value="no">No</option>
+                                        <option value="yes">Yes</option>
+                                    </select>
+                                </div>
+
+                                {formData.hasExtraMembers === 'yes' && (
+                                    <>
+                                        <div className="form-group" style={{ flex: '1' }}>
+                                            <label>
+                                                <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                                No. of Members *
+                                            </label>
+                                            <input 
+                                                type="number" 
+                                                name="extraMembersCount" 
+                                                min="1" 
+                                                max="50"
+                                                required 
+                                                value={formData.extraMembersCount} 
+                                                onChange={handleChange} 
+                                                placeholder="e.g. 2" 
+                                            />
+                                        </div>
+
+                                        <div className="form-group" style={{ flex: '2' }}>
+                                            <label>
+                                                <i className="fa-solid fa-id-card-clip" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                                Accompanying Visitor IDs *
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                name="extraMembersIds" 
+                                                required 
+                                                value={formData.extraMembersIds} 
+                                                onChange={handleChange} 
+                                                placeholder="e.g. VIS-1002, VIS-1003" 
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Host */}

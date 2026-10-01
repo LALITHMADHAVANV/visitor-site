@@ -24,10 +24,11 @@
     overflow: hidden;
     position: relative;
     background: #f1f5f9;
-    border: 2px dashed #cbd5e1;
+    border: 3px dashed #cbd5e1;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
 .camera-overlay {
@@ -35,6 +36,57 @@
     font-size: 48px;
     color: #94a3b8;
     z-index: 0;
+}
+
+/* Big Vibrant Capture Button */
+.btn-capture-large {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    padding: 14px 32px !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    border-radius: 50px !important;
+    border: none !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    cursor: pointer !important;
+    transition: all 0.25s ease !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+}
+
+.btn-capture-large:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6) !important;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+.btn-capture-large:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+.btn-retake-large {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: #ffffff !important;
+    padding: 12px 26px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    border-radius: 50px !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.25s ease !important;
+}
+
+.btn-retake-large:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5) !important;
 }
 
 @media (max-width: 768px) {
