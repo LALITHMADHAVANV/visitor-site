@@ -41,18 +41,6 @@ export default function Register({ isKiosk = false }) {
         purpose: location.state?.preregData?.purpose || ''
     });
 
-    useEffect(() => {
-        let isMounted = true;
-        generateVisitorId().then(id => {
-            if (isMounted) {
-                setFormData(prev => ({
-                    ...prev,
-                    visitorNo: prev.visitorNo || id
-                }));
-            }
-        }).catch(err => console.error("Initial visitor ID generation error:", err));
-        return () => { isMounted = false; };
-    }, []);
 
     const capture = useCallback(() => {
         const imageSrc = webcamRef.current.getScreenshot();
@@ -171,45 +159,26 @@ export default function Register({ isKiosk = false }) {
         }
     };
 
-    const handleNextVisitor = async () => {
+    const handleNextVisitor = () => {
         setSuccessQR(null);
         setRegisteredVisitor(null);
         setVisitorStatus('registered');
         setPhotoData(null);
-        try {
-            const nextId = await generateVisitorId();
-            setFormData({
-                visitorNo: nextId,
-                name: '',
-                phone: '',
-                company: '',
-                idType: '',
-                idNumber: '',
-                hasVehicle: 'no',
-                vehicleNo: 'No',
-                hasExtraMembers: 'no',
-                extraMembersCount: '',
-                extraMembersIds: '',
-                hostName: '',
-                purpose: ''
-            });
-        } catch {
-            setFormData({
-                visitorNo: '',
-                name: '',
-                phone: '',
-                company: '',
-                idType: '',
-                idNumber: '',
-                hasVehicle: 'no',
-                vehicleNo: 'No',
-                hasExtraMembers: 'no',
-                extraMembersCount: '',
-                extraMembersIds: '',
-                hostName: '',
-                purpose: ''
-            });
-        }
+        setFormData({
+            visitorNo: '',
+            name: '',
+            phone: '',
+            company: '',
+            idType: '',
+            idNumber: '',
+            hasVehicle: 'no',
+            vehicleNo: 'No',
+            hasExtraMembers: 'no',
+            extraMembersCount: '',
+            extraMembersIds: '',
+            hostName: '',
+            purpose: ''
+        });
     };
 
     const [visitorStatus, setVisitorStatus] = useState('registered');
@@ -534,18 +503,22 @@ export default function Register({ isKiosk = false }) {
                             {/* Row 1: Visitor No & Full Name */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-id-badge" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        Visitor No *
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span>
+                                            <i className="fa-solid fa-id-badge" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                            Visitor ID / Badge No
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                            (Enter or click ↻ to generate)
+                                        </span>
                                     </label>
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                                         <input 
                                             type="text" 
                                             name="visitorNo" 
-                                            required 
                                             value={formData.visitorNo} 
                                             onChange={handleChange} 
-                                            placeholder="e.g. VIS-20260930-0001"
+                                            placeholder="Enter Visitor ID / Badge No"
                                             style={{ paddingRight: '40px', fontFamily: 'monospace', fontWeight: 'bold' }} 
                                         />
                                         <button
