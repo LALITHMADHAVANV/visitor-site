@@ -7,12 +7,12 @@
     height: 2.125in; /* Standard CR80 badge dimensions */
     border: 1.5px solid #0f172a;
     border-radius: 6px;
-    padding: 8px 10px;
+    padding: 6px 10px;
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
     background: #ffffff !important;
     color: #000000 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -21,28 +21,28 @@
 
 /* Left Column: Company Logo at top + Exit QR at bottom */
 .badge-left-col {
-    width: 90px;
-    min-width: 90px;
+    width: 98px;
+    min-width: 98px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     height: 100%;
     box-sizing: border-box;
-    padding-right: 4px;
+    padding-right: 2px;
 }
 
 .badge-company-logo-area {
     width: 100%;
-    height: 40px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .badge-logo-img {
-    max-width: 88px;
-    max-height: 38px;
+    max-width: 94px;
+    max-height: 34px;
     object-fit: contain;
     display: block;
 }
@@ -54,7 +54,7 @@
     color: #0f172a !important;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
 }
 
 .badge-exit-qr {
@@ -67,8 +67,8 @@
 
 .badge-qr-box {
     background: #ffffff !important;
-    padding: 3px;
-    border: 1.2px solid #0f172a;
+    padding: 2px;
+    border: 1.5px solid #0f172a;
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -88,7 +88,7 @@
 }
 
 .badge-qr-label {
-    font-size: 7.5px;
+    font-size: 8px;
     font-weight: 800;
     color: #0f172a !important;
     letter-spacing: 0.5px;
@@ -111,7 +111,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
+    justify-content: center;
+    gap: 5px;
     padding-left: 8px;
     border-left: 1px dashed #cbd5e1;
     box-sizing: border-box;
@@ -120,15 +121,15 @@
 .badge-field-row {
     display: flex;
     align-items: baseline;
-    font-size: 9.5px;
+    font-size: 10px;
     line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;
 }
 
 .badge-field-label {
-    width: 82px;
-    min-width: 82px;
+    width: 72px;
+    min-width: 72px;
     flex-shrink: 0;
     font-weight: 700;
     color: #334155 !important;
@@ -136,7 +137,7 @@
 }
 
 .badge-field-sep {
-    margin-right: 5px;
+    margin-right: 4px;
     font-weight: 700;
     color: #334155 !important;
     flex-shrink: 0;
@@ -147,14 +148,14 @@
     min-width: 0;
     font-weight: 600;
     color: #0f172a !important;
-    font-size: 9.5px;
+    font-size: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .badge-name-val {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 800;
     color: #000000 !important;
     text-transform: capitalize;

@@ -71,7 +71,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <div className="badge-qr-box">
                             <QRCodeSVG 
                                 value={exitQrUrl} 
-                                size={64} 
+                                size={80} 
                                 level="M" 
                                 fgColor="#000000"
                                 bgColor="#ffffff"
