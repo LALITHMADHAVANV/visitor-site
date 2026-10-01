@@ -17,6 +17,7 @@ export const THERMAL_80MM_PAGE_STYLE = `
       margin: 0 !important;
       padding: 0 !important;
       width: 80mm !important;
+      min-width: 80mm !important;
       max-width: 80mm !important;
       background: #ffffff !important;
     }
@@ -26,8 +27,24 @@ export const THERMAL_80MM_PAGE_STYLE = `
       left: 0 !important;
       top: 0 !important;
       width: 80mm !important;
+      min-width: 80mm !important;
+      max-width: 80mm !important;
       margin: 0 !important;
       padding: 0 !important;
+      background: #ffffff !important;
+    }
+    .badge-card-80mm {
+      width: 80mm !important;
+      min-width: 80mm !important;
+      max-width: 80mm !important;
+      margin: 0 !important;
+      border: 1.5px solid #000000 !important;
+      border-radius: 0px !important;
+      box-shadow: none !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      page-break-after: always;
+      break-after: page;
     }
   }
 `;
@@ -139,14 +156,14 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                             <div className="badge-qr-box">
                                 <QRCodeSVG 
                                     value={exitQrUrl} 
-                                    size={78} 
+                                    size={82} 
                                     level="H" 
                                     fgColor="#000000"
                                     bgColor="#ffffff"
                                     imageSettings={{
                                         src: logoSrc,
-                                        height: 20,
-                                        width: 20,
+                                        height: 22,
+                                        width: 22,
                                         excavate: true
                                     }}
                                 />
