@@ -21,8 +21,8 @@
 
 /* Left Column: Company Logo at top + Exit QR at bottom */
 .badge-left-col {
-    width: 86px;
-    min-width: 86px;
+    width: 90px;
+    min-width: 90px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -34,15 +34,15 @@
 
 .badge-company-logo-area {
     width: 100%;
-    height: 38px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .badge-logo-img {
-    max-width: 84px;
-    max-height: 36px;
+    max-width: 88px;
+    max-height: 38px;
     object-fit: contain;
     display: block;
 }

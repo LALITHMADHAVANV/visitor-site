@@ -41,7 +41,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
         ? visitor.purpose.replace(/\[ID:.*?\]/g, '').trim() || visitor.purpose
         : '-';
 
-    const logoSrc = (typeof window !== 'undefined' && localStorage.getItem('companyLogo')) || '/company-logo.svg';
+    const logoSrc = (typeof window !== 'undefined' && localStorage.getItem('companyLogo')) || '/company-logo.png';
     const passNo = visitor.visitorNo || visitor.id || '';
 
     return (
@@ -63,7 +63,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         />
                         <div className="badge-logo-fallback" style={{ display: 'none' }}>
                             <i className="fa-solid fa-building-shield"></i>
-                            <span>TEXPLUS</span>
+                            <span>ess ee</span>
                         </div>
                     </div>
 
