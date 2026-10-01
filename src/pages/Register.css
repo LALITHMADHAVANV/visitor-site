@@ -2,6 +2,7 @@
     padding: 32px;
     max-width: 900px;
     margin: 0 auto;
+    background: #ffffff;
 }
 
 .form-grid {
@@ -22,8 +23,8 @@
     border-radius: 50%;
     overflow: hidden;
     position: relative;
-    background: rgba(0,0,0,0.3);
-    border: 2px dashed var(--border-color);
+    background: #f1f5f9;
+    border: 2px dashed #cbd5e1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -32,7 +33,7 @@
 .camera-overlay {
     position: absolute;
     font-size: 48px;
-    color: rgba(255,255,255,0.2);
+    color: #94a3b8;
     z-index: 0;
 }
 
@@ -54,4 +55,3 @@
         gap: 0;
     }
 }
-

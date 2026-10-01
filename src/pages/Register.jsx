@@ -224,7 +224,7 @@ export default function Register({ isKiosk = false }) {
 
                     {/* Visitor Details Summary Card */}
                     <div style={{ 
-                        background: 'rgba(255, 255, 255, 0.04)', 
+                        background: '#f8fafc', 
                         border: '1px solid var(--border-color)', 
                         borderRadius: '16px', 
                         padding: '20px', 
@@ -239,7 +239,7 @@ export default function Register({ isKiosk = false }) {
                             height: '90px', 
                             borderRadius: '12px', 
                             overflow: 'hidden', 
-                            background: 'rgba(255, 255, 255, 0.1)', 
+                            background: '#e2e8f0', 
                             flexShrink: 0,
                             display: 'flex',
                             alignItems: 'center',
@@ -254,7 +254,7 @@ export default function Register({ isKiosk = false }) {
 
                         {/* Details */}
                         <div style={{ flex: 1 }}>
-                            <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', color: 'white' }}>{registeredVisitor.name}</h3>
+                            <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', color: 'var(--text-primary)' }}>{registeredVisitor.name}</h3>
                             {registeredVisitor.company && (
                                 <p style={{ margin: '0 0 8px 0', color: 'var(--accent-primary)', fontSize: '14px', fontWeight: '500' }}>
                                     <i className="fa-solid fa-building" style={{ marginRight: '6px' }}></i>
@@ -269,7 +269,7 @@ export default function Register({ isKiosk = false }) {
                                 <div><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                 {registeredVisitor.idType && (
                                     <div>
-                                        <strong>ID ({registeredVisitor.idType}):</strong> <span style={{ fontFamily: 'monospace' }}>{registeredVisitor.idNumber || 'Recorded'}</span>
+                                        <strong>ID ({registeredVisitor.idType}):</strong> <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{registeredVisitor.idNumber || 'Recorded'}</span>
                                     </div>
                                 )}
                             </div>
@@ -278,7 +278,7 @@ export default function Register({ isKiosk = false }) {
 
                     {/* Check-In QR Code for Visitor to Scan */}
                     <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px' }}>
+                        <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)' }}>
                             <QRCodeSVG value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} size={160} />
                         </div>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '8px' }}>
@@ -288,8 +288,8 @@ export default function Register({ isKiosk = false }) {
 
                     {/* Telegram Host Arrival Alert Notice */}
                     <div style={{ 
-                        background: 'rgba(59, 130, 246, 0.08)', 
-                        border: '1px solid rgba(59, 130, 246, 0.2)', 
+                        background: '#eff6ff', 
+                        border: '1px solid #bfdbfe', 
                         borderRadius: '12px', 
                         padding: '14px 18px', 
                         marginBottom: '24px',
@@ -299,7 +299,7 @@ export default function Register({ isKiosk = false }) {
                         textAlign: 'left'
                     }}>
                         <i className="fa-brands fa-telegram" style={{ color: 'var(--accent-primary)', fontSize: '24px' }}></i>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                        <div style={{ color: '#1e3a8a', fontSize: '13px' }}>
                             An arrival notification will be sent to <strong>{registeredVisitor.hostName}</strong> via Telegram upon scanning the Check-In QR.
                         </div>
                     </div>

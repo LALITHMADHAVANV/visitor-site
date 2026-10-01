@@ -2,6 +2,7 @@
     width: 260px;
     display: flex;
     flex-direction: column;
+    background: #ffffff;
     border-right: 1px solid var(--border-color);
     padding: 24px 0;
 }
@@ -14,6 +15,12 @@
     margin-bottom: 40px;
 }
 
+.brand h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
 .brand-icon {
     font-size: 24px;
     color: var(--accent-primary);
@@ -22,7 +29,7 @@
 .nav-menu {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     padding: 0 16px;
     flex: 1;
 }
@@ -35,18 +42,20 @@
     color: var(--text-secondary);
     text-decoration: none;
     border-radius: 8px;
+    font-weight: 500;
     transition: var(--transition);
 }
 
-.nav-link:hover, .nav-link.active {
-    background-color: rgba(255, 255, 255, 0.05);
+.nav-link:hover {
+    background-color: #f1f5f9;
     color: var(--text-primary);
 }
 
 .nav-link.active {
-    background-color: rgba(59, 130, 246, 0.1);
+    background-color: #eff6ff;
     color: var(--accent-primary);
     border-left: 3px solid var(--accent-primary);
+    font-weight: 600;
 }
 
 .sidebar-footer {
@@ -57,9 +66,9 @@
 
 .time-widget {
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 4px;
-    color: var(--accent-secondary);
+    color: var(--accent-primary);
 }
 
 .date-widget {

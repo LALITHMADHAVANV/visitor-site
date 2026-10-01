@@ -17,51 +17,53 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
     const cleanOrigin = getCleanOrigin();
     const exitQrUrl = `${cleanOrigin}/mobile-action?id=${visitor.id}&action=checkout`;
 
-    const formattedDate = visitor.checkInTime 
-        ? new Date(visitor.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
-        : new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    // Format Time & Date
+    const rawTime = visitor.checkInTime || visitor.created_at || new Date();
+    const dateObj = new Date(rawTime);
+    const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+
+    const formattedTime = validDate.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+    });
+
+    const formattedDate = validDate.toLocaleDateString([], { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+    });
+
+    const formattedDateTime = `${formattedTime}, ${formattedDate}`;
+
+    // Clean purpose from any embedded [ID: ...] tags
+    const cleanPurpose = visitor.purpose 
+        ? visitor.purpose.replace(/\[ID:.*?\]/g, '').trim() || visitor.purpose
+        : '-';
+
+    const logoSrc = (typeof window !== 'undefined' && localStorage.getItem('companyLogo')) || '/company-logo.svg';
+    const passNo = visitor.visitorNo || visitor.id || '';
 
     return (
         <div className="badge-print-container" ref={ref}>
             <div className="badge-card">
-                <div className="badge-header">
-                    <div className="badge-brand">
-                        <i className="fa-solid fa-shield-halved"></i>
-                        <span>VMS Pro</span>
-                    </div>
-                    <span className="badge-title">VISITOR PASS</span>
-                </div>
-                
-                <div className="badge-body">
-                    <div className="badge-photo-container">
-                        {visitor.photoData ? (
-                            <img src={visitor.photoData} alt="Visitor" className="badge-photo" />
-                        ) : (
-                            <div className="badge-photo-placeholder">
-                                {visitor.name ? visitor.name.charAt(0).toUpperCase() : 'V'}
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div className="badge-details">
-                        <h2 className="visitor-name" title={visitor.name}>{visitor.name}</h2>
-                        {visitor.company && <p className="visitor-company" title={visitor.company}>{visitor.company}</p>}
-                        
-                        <div className="host-info">
-                            <span className="label">Host:</span>
-                            <span className="value">{visitor.hostName || '-'}</span>
-                        </div>
-
-                        {visitor.idType && (
-                            <div className="id-info" style={{ display: 'flex', gap: '4px', fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                                <span className="label" style={{ fontWeight: '600' }}>{visitor.idType}:</span>
-                                <span className="value" style={{ fontFamily: 'monospace' }}>{visitor.idNumber || '-'}</span>
-                            </div>
-                        )}
-                        
-                        <div className="date-info">
-                            <span className="label">Date:</span>
-                            <span className="value">{formattedDate}</span>
+                {/* Left Section: Company Logo + Exit QR */}
+                <div className="badge-left-col">
+                    <div className="badge-company-logo-area">
+                        <img 
+                            src={logoSrc} 
+                            alt="Company Logo" 
+                            className="badge-logo-img"
+                            onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextSibling) {
+                                    e.currentTarget.nextSibling.style.display = 'flex';
+                                }
+                            }}
+                        />
+                        <div className="badge-logo-fallback" style={{ display: 'none' }}>
+                            <i className="fa-solid fa-building-shield"></i>
+                            <span>TEXPLUS</span>
                         </div>
                     </div>
 
@@ -69,19 +71,60 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <div className="badge-qr-box">
                             <QRCodeSVG 
                                 value={exitQrUrl} 
-                                size={54} 
+                                size={64} 
                                 level="M" 
                                 fgColor="#000000"
                                 bgColor="#ffffff"
                             />
                         </div>
-                        <span className="badge-qr-tag">SCAN TO EXIT</span>
+                        <div className="badge-qr-meta">
+                            <span className="badge-qr-label">EXIT QR</span>
+                            {passNo && <span className="badge-qr-id">#{passNo}</span>}
+                        </div>
                     </div>
                 </div>
-                
-                <div className="badge-footer">
-                    <span className="badge-notice">Scan Exit QR on departure</span>
-                    <span className="badge-id">{visitor.visitorNo || visitor.id}</span>
+
+                {/* Right Section: Name, Company, Visiting Person, Purpose, Time & Date */}
+                <div className="badge-right-col">
+                    <div className="badge-field-row">
+                        <span className="badge-field-label">Name</span>
+                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-val badge-name-val" title={visitor.name}>
+                            {visitor.name || '-'}
+                        </span>
+                    </div>
+
+                    <div className="badge-field-row">
+                        <span className="badge-field-label">Company</span>
+                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-val" title={visitor.company}>
+                            {visitor.company || '-'}
+                        </span>
+                    </div>
+
+                    <div className="badge-field-row">
+                        <span className="badge-field-label">Visiting Person</span>
+                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-val" title={visitor.hostName || visitor.hostname}>
+                            {visitor.hostName || visitor.hostname || '-'}
+                        </span>
+                    </div>
+
+                    <div className="badge-field-row">
+                        <span className="badge-field-label">Purpose</span>
+                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-val" title={cleanPurpose}>
+                            {cleanPurpose || '-'}
+                        </span>
+                    </div>
+
+                    <div className="badge-field-row">
+                        <span className="badge-field-label">Time & Date</span>
+                        <span className="badge-field-sep">:</span>
+                        <span className="badge-field-val">
+                            {formattedDateTime}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

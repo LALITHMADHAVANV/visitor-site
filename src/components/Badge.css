@@ -2,6 +2,164 @@
     display: none;
 }
 
+.badge-card {
+    width: 3.375in;
+    height: 2.125in; /* Standard CR80 badge dimensions */
+    border: 1.5px solid #0f172a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+}
+
+/* Left Column: Company Logo at top + Exit QR at bottom */
+.badge-left-col {
+    width: 86px;
+    min-width: 86px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    box-sizing: border-box;
+    padding-right: 4px;
+}
+
+.badge-company-logo-area {
+    width: 100%;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge-logo-img {
+    max-width: 84px;
+    max-height: 36px;
+    object-fit: contain;
+    display: block;
+}
+
+.badge-logo-fallback {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #0f172a !important;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-exit-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.badge-qr-box {
+    background: #ffffff !important;
+    padding: 3px;
+    border: 1.2px solid #0f172a;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge-qr-box svg {
+    display: block;
+}
+
+.badge-qr-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    margin-top: 1px;
+}
+
+.badge-qr-label {
+    font-size: 7.5px;
+    font-weight: 800;
+    color: #0f172a !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.badge-qr-id {
+    font-family: monospace;
+    font-size: 6.5px;
+    font-weight: 700;
+    color: #64748b !important;
+    line-height: 1;
+}
+
+/* Right Column: Name, Company, Visiting Person, Purpose, Time & Date */
+.badge-right-col {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding-left: 8px;
+    border-left: 1px dashed #cbd5e1;
+    box-sizing: border-box;
+}
+
+.badge-field-row {
+    display: flex;
+    align-items: baseline;
+    font-size: 9.5px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.badge-field-label {
+    width: 82px;
+    min-width: 82px;
+    flex-shrink: 0;
+    font-weight: 700;
+    color: #334155 !important;
+    font-size: 9.5px;
+}
+
+.badge-field-sep {
+    margin-right: 5px;
+    font-weight: 700;
+    color: #334155 !important;
+    flex-shrink: 0;
+}
+
+.badge-field-val {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: #0f172a !important;
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badge-name-val {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #000000 !important;
+    text-transform: capitalize;
+}
+
 @media print {
     body * {
         visibility: hidden;
@@ -12,7 +170,7 @@
     }
     
     .badge-print-container {
-        display: block;
+        display: block !important;
         position: absolute;
         left: 0;
         top: 0;
@@ -22,190 +180,9 @@
     }
 
     .badge-card {
-        width: 3.375in;
-        height: 2.125in; /* Standard CR80 badge size */
-        border: 1.5px solid #0f172a;
-        border-radius: 8px;
-        padding: 10px 12px;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        background: #ffffff !important;
-        color: #000000 !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        box-shadow: none !important;
         page-break-after: always;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-    }
-
-    .badge-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 2px solid #2563eb;
-        padding-bottom: 4px;
-    }
-
-    .badge-brand {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 800;
-        font-size: 13px;
-        color: #2563eb !important;
-    }
-
-    .badge-brand i {
-        font-size: 14px;
-        color: #2563eb !important;
-    }
-
-    .badge-title {
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-        color: #475569 !important;
-    }
-
-    .badge-body {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 6px;
-        margin-bottom: 4px;
-        flex: 1;
-    }
-
-    .badge-photo-container {
-        width: 0.85in;
-        height: 0.85in;
-        border-radius: 6px;
-        overflow: hidden;
-        flex-shrink: 0;
-        background: #f1f5f9 !important;
-        border: 1px solid #cbd5e1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .badge-photo {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .badge-photo-placeholder {
-        font-size: 26px;
-        font-weight: bold;
-        color: #94a3b8 !important;
-    }
-
-    .badge-details {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 2px;
-    }
-
-    .visitor-name {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 700;
-        color: #0f172a !important;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .visitor-company {
-        margin: 0;
-        font-size: 10px;
-        color: #475569 !important;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .host-info, .date-info {
-        margin-top: 2px;
-        font-size: 9.5px;
-        display: flex;
-        gap: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .label {
-        color: #64748b !important;
-        font-weight: 500;
-    }
-
-    .value {
-        color: #0f172a !important;
-        font-weight: 600;
-    }
-
-    .badge-exit-qr {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        gap: 2px;
-        padding-left: 4px;
-    }
-
-    .badge-qr-box {
-        background: #ffffff !important;
-        padding: 3px;
-        border: 1px solid #0f172a;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .badge-qr-box svg {
-        display: block;
-    }
-
-    .badge-qr-tag {
-        font-size: 7px;
-        font-weight: 800;
-        color: #dc2626 !important;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        margin-top: 1px;
-    }
-
-    .badge-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-top: 1px dashed #cbd5e1;
-        padding-top: 3px;
-        margin-top: 2px;
-    }
-
-    .badge-notice {
-        font-size: 7.5px;
-        font-weight: 600;
-        color: #64748b !important;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-    }
-
-    .badge-id {
-        font-family: monospace;
-        font-size: 9px;
-        font-weight: 700;
-        color: #0f172a !important;
     }
 }
