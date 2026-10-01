@@ -2,6 +2,36 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import './Badge.css';
 
+export const THERMAL_80MM_PAGE_STYLE = `
+  @page {
+    size: 80mm auto;
+    margin: 0mm !important;
+  }
+  @media print {
+    *, *:before, *:after {
+      box-sizing: border-box !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 80mm !important;
+      max-width: 80mm !important;
+      background: #ffffff !important;
+    }
+    .badge-print-container {
+      display: block !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 80mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  }
+`;
+
 const Badge = React.forwardRef(({ visitor }, ref) => {
     if (!visitor) return null;
 
@@ -36,7 +66,6 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
 
     const formattedDateTime = `${formattedTime}, ${formattedDate}`;
 
-    // Clean purpose from any embedded [ID: ...] tags
     // Extract Vehicle No
     const rawVehicleNo = visitor.vehicleNo || (() => {
         if (visitor.purpose) {
@@ -46,6 +75,26 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
         return visitor.hasVehicle === 'yes' ? 'Yes' : (visitor.vehicleNo || 'No');
     })();
     const displayVehicleNo = rawVehicleNo || 'No';
+
+    // Extract ID Details
+    const rawIdType = visitor.idType || (() => {
+        if (visitor.purpose) {
+            const match = visitor.purpose.match(/\[ID:\s*(.*?)(?:\s*-\s*(.*?))?\]/i);
+            if (match && match[1]) return match[1].trim();
+        }
+        return null;
+    })();
+    const rawIdNumber = visitor.idNumber || (() => {
+        if (visitor.purpose) {
+            const match = visitor.purpose.match(/\[ID:\s*.*?\s*-\s*(.*?)\]/i);
+            if (match && match[1]) return match[1].trim();
+        }
+        return null;
+    })();
+
+    // Extra Members
+    const extraCount = visitor.hasExtraMembers === 'yes' ? (parseInt(visitor.extraMembersCount) || 1) : 0;
+    const extraIds = visitor.extraMembersIds || '';
 
     // Clean purpose from any embedded tags
     const cleanPurpose = visitor.purpose 
@@ -61,17 +110,17 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
 
     return (
         <div className="badge-print-container" ref={ref}>
-            <div className="badge-card">
+            <div className="badge-card-80mm">
                 {/* Header Title Band */}
                 <div className="badge-header-band">VISITOR PASS</div>
 
                 <div className="badge-main-body">
-                    {/* Left Section: Company Logo + Exit QR (Compact spacing) */}
+                    {/* Left Section: Company Logo + Exit QR */}
                     <div className="badge-left-col">
                         <div className="badge-company-logo-area">
                             <img 
                                 src={logoSrc} 
-                                alt="Company Logo" 
+                                alt="Esstee Exports" 
                                 className="badge-logo-img"
                                 onError={(e) => {
                                     e.currentTarget.style.display = 'none';
@@ -82,7 +131,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                             />
                             <div className="badge-logo-fallback" style={{ display: 'none' }}>
                                 <i className="fa-solid fa-building-shield"></i>
-                                <span>ess ee</span>
+                                <span>Esstee Exports</span>
                             </div>
                         </div>
 
@@ -90,10 +139,16 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                             <div className="badge-qr-box">
                                 <QRCodeSVG 
                                     value={exitQrUrl} 
-                                    size={68} 
-                                    level="M" 
+                                    size={78} 
+                                    level="H" 
                                     fgColor="#000000"
                                     bgColor="#ffffff"
+                                    imageSettings={{
+                                        src: logoSrc,
+                                        height: 20,
+                                        width: 20,
+                                        excavate: true
+                                    }}
                                 />
                             </div>
                             <div className="badge-qr-meta">
@@ -103,7 +158,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         </div>
                     </div>
 
-                    {/* Right Section: Name, Company, Visiting Person, Vehicle No, Purpose, Time & Date */}
+                    {/* Right Section: Name, Company, Visiting Person, Vehicle No, ID, Purpose, Time & Date */}
                     <div className="badge-right-col">
                         <div className="badge-field-row">
                             <span className="badge-field-label">Name:</span>
@@ -111,6 +166,13 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                                 {visitor.name || '-'}
                             </span>
                         </div>
+
+                        {visitor.phone && (
+                            <div className="badge-field-row">
+                                <span className="badge-field-label">Phone:</span>
+                                <span className="badge-field-val badge-mono-val">{visitor.phone}</span>
+                            </div>
+                        )}
 
                         <div className="badge-field-row">
                             <span className="badge-field-label">Company:</span>
@@ -121,7 +183,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
 
                         <div className="badge-field-row">
                             <span className="badge-field-label">Visiting Person:</span>
-                            <span className="badge-field-val" title={visitor.hostName || visitor.hostname}>
+                            <span className="badge-field-val badge-bold-val" title={visitor.hostName || visitor.hostname}>
                                 {visitor.hostName || visitor.hostname || '-'}
                             </span>
                         </div>
@@ -132,6 +194,20 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                                 {displayVehicleNo}
                             </span>
                         </div>
+
+                        {rawIdType && (
+                            <div className="badge-field-row">
+                                <span className="badge-field-label">{rawIdType}:</span>
+                                <span className="badge-field-val badge-mono-val">{rawIdNumber || 'Verified'}</span>
+                            </div>
+                        )}
+
+                        {extraCount > 0 && (
+                            <div className="badge-field-row">
+                                <span className="badge-field-label">Extra:</span>
+                                <span className="badge-field-val">+{extraCount} ({extraIds || 'Verified'})</span>
+                            </div>
+                        )}
 
                         <div className="badge-field-row">
                             <span className="badge-field-label">Purpose:</span>

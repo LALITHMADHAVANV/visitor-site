@@ -39,7 +39,7 @@ export const sendTelegramMessage = async (visitorOrName, hostNameArg, extraArg) 
 
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const idProofLine = idType ? `\n🪪 *ID Proof:* ${idType}${idNumber ? ` (${idNumber})` : ''}` : '';
-    const message = `🔔 *Visitor Arrival Alert*\n\nHello *${hostName}*,\nYour visitor *${visitorName}*${company ? ` from *${company}*` : ''} has arrived and checked in to see you.\n\n📋 *Purpose:* ${purpose || 'Meeting'}\n🆔 *Visitor No:* ${id || '-'}${idProofLine}\n⏰ *Time:* ${timeStr}`;
+    const message = `🔔 *Esstee Exports - Visitor Arrival Alert*\n\nHello *${hostName}*,\nYour visitor *${visitorName}*${company ? ` from *${company}*` : ''} has arrived and checked in to see you.\n\n📋 *Purpose:* ${purpose || 'Meeting'}\n🆔 *Visitor No:* ${id || '-'}${idProofLine}\n⏰ *Time:* ${timeStr}`;
 
     if (!token || !targetChatId) {
         console.warn("Telegram credentials missing in environment. Logging message:");

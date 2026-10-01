@@ -59,9 +59,10 @@ function AppContent() {
       <Route path="/mobile-action" element={<MobileAction />} />
       <Route path="/kiosk" element={
         <div className="app-container" style={{ display: 'block', overflowY: 'auto' }}>
-          <header style={{ padding: '24px', textAlign: 'center', borderBottom: '1px solid var(--border-color)' }}>
-            <h1 style={{ color: 'var(--accent-primary)' }}>Welcome to VMS Pro</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Please register below</p>
+          <header style={{ padding: '24px', textAlign: 'center', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '48px', objectFit: 'contain' }} />
+            <h1 style={{ color: 'var(--accent-primary)', margin: 0, fontSize: '28px' }}>Welcome to Esstee Exports</h1>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Self-Registration & Digital Visitor Pass</p>
           </header>
           <div style={{ padding: '32px' }}>
              <Register isKiosk={true} />

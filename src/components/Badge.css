@@ -1,31 +1,44 @@
+/* ==============================================================================
+   80MM (3-INCH) TVS BILL PRINTER OPTIMIZED VISITOR BADGE
+   ============================================================================== */
+
+@page {
+    size: 80mm auto;
+    margin: 0mm !important;
+}
+
 .badge-print-container {
     display: none;
 }
 
-.badge-card {
-    width: 3.375in;
-    height: 2.125in; /* Standard CR80 badge dimensions */
-    border: 1.5px solid #0f172a;
-    border-radius: 6px;
+/* Badge Card specifically engineered to fill 80mm (3 inches) thermal paper */
+.badge-card-80mm {
+    width: 75mm;
+    max-width: 76mm;
+    min-height: 48mm;
+    height: auto;
+    margin: 1mm auto;
+    border: 2px solid #000000;
+    border-radius: 4px;
     padding: 0;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     background: #ffffff !important;
     color: #000000 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     overflow: hidden;
 }
 
 /* Header Title Band */
 .badge-header-band {
-    background: #0f172a !important;
+    background: #000000 !important;
     color: #ffffff !important;
-    font-size: 10px;
-    font-weight: 800;
+    font-size: 12px;
+    font-weight: 900;
     letter-spacing: 2px;
     text-align: center;
-    padding: 2.5px 0;
+    padding: 3.5px 0;
     text-transform: uppercase;
     line-height: 1.2;
     flex-shrink: 0;
@@ -33,55 +46,52 @@
     print-color-adjust: exact;
 }
 
-/* Main Body: Columns */
+/* Main Body Columns */
 .badge-main-body {
     flex: 1;
-    min-height: 0;
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    padding: 4px 8px 5px 8px;
-    gap: 8px;
+    padding: 5px 6px 5px 6px;
+    gap: 6px;
     box-sizing: border-box;
 }
 
-/* Left Column: Company Logo at top + Exit QR right below it (Minimal gap) */
+/* Left Column: Logo + Exit QR */
 .badge-left-col {
     width: 86px;
     min-width: 86px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    height: 100%;
     box-sizing: border-box;
-    padding: 0;
-    gap: 4px; /* Reduced gap between company logo and QR */
+    padding: 1px 0;
 }
 
 .badge-company-logo-area {
     width: 100%;
-    height: 36px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .badge-logo-img {
-    max-width: 84px;
-    max-height: 34px;
+    max-width: 82px;
+    max-height: 32px;
     object-fit: contain;
     display: block;
+    filter: grayscale(100%) contrast(150%);
 }
 
 .badge-logo-fallback {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.5px;
-    color: #0f172a !important;
+    color: #000000 !important;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 }
 
 .badge-exit-qr {
@@ -89,13 +99,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 1.5px;
+    margin-top: 2px;
 }
 
 .badge-qr-box {
     background: #ffffff !important;
-    padding: 2px;
-    border: 1.5px solid #0f172a;
+    padding: 2.5px;
+    border: 1.5px solid #000000;
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -117,35 +128,34 @@
 }
 
 .badge-qr-label {
-    font-size: 7.5px;
-    font-weight: 800;
-    color: #0f172a !important;
+    font-size: 8px;
+    font-weight: 900;
+    color: #000000 !important;
     letter-spacing: 0.8px;
     text-transform: uppercase;
     line-height: 1;
 }
 
 .badge-qr-id {
-    font-family: monospace;
-    font-size: 7px;
-    font-weight: 700;
-    color: #475569 !important;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 8px;
+    font-weight: 800;
+    color: #000000 !important;
     line-height: 1;
     letter-spacing: -0.2px;
     white-space: nowrap;
 }
 
-/* Right Column: Name, Company, Visiting Person, Vehicle No, Purpose, Time & Date */
+/* Right Column: Visitor Details */
 .badge-right-col {
     flex: 1;
     min-width: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 4px; /* Compact, balanced spacing between rows */
+    justify-content: space-around;
+    gap: 3.5px;
     padding: 2px 0 2px 8px;
-    border-left: 1.5px solid #0f172a;
+    border-left: 1.5px solid #000000;
     box-sizing: border-box;
 }
 
@@ -153,74 +163,105 @@
     display: flex;
     align-items: baseline;
     gap: 5px;
-    line-height: 1.22;
-    white-space: nowrap;
+    line-height: 1.25;
     overflow: hidden;
 }
 
 .badge-field-label {
-    font-size: 9px;
-    font-weight: 700;
-    color: #475569 !important;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #000000 !important;
     flex-shrink: 0;
 }
 
 .badge-field-val {
     flex: 1;
     min-width: 0;
-    font-weight: 600;
-    color: #0f172a !important;
-    font-size: 10px;
+    font-weight: 700;
+    color: #000000 !important;
+    font-size: 10.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .badge-name-val {
-    font-size: 12.5px;
-    font-weight: 800;
+    font-size: 13.5px;
+    font-weight: 900;
     color: #000000 !important;
-    text-transform: capitalize;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-bold-val {
+    font-weight: 800;
+    font-size: 11px;
 }
 
 .badge-vehicle-val {
-    font-family: monospace;
-    font-weight: 700;
+    font-family: "Courier New", Courier, monospace;
+    font-weight: 800;
+    font-size: 10.5px;
+}
+
+.badge-mono-val {
+    font-family: "Courier New", Courier, monospace;
     font-size: 10px;
+    font-weight: 700;
 }
 
 .badge-date-val {
-    font-size: 8.5px;
-    font-weight: 600;
-    color: #0f172a !important;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #000000 !important;
     white-space: nowrap;
-    overflow: visible;
-    text-overflow: clip;
 }
 
+/* Print Rules specifically for 80mm TVS Bill Printer */
 @media print {
+    *, *:before, *:after {
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html, body {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+    }
+
     body * {
         visibility: hidden;
     }
-    
-    .badge-print-container, .badge-print-container * {
+
+    .badge-print-container, 
+    .badge-print-container * {
         visibility: visible;
     }
-    
+
     .badge-print-container {
         display: block !important;
         position: absolute;
         left: 0;
         top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
     }
 
-    .badge-card {
+    .badge-card-80mm {
+        width: 75mm !important;
+        max-width: 76mm !important;
+        margin: 0 auto !important;
         box-shadow: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
         page-break-after: always;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        break-after: page;
     }
 }

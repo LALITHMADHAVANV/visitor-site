@@ -44,10 +44,10 @@ export default function Login() {
         <div className="login-container">
             <div className="login-card glass-panel" style={view === 'selection' ? { maxWidth: '600px' } : {}}>
                 <div className="login-header">
-                    <i className="fa-solid fa-shield-halved brand-icon" style={{ fontSize: '48px', color: 'var(--accent-primary)', marginBottom: '16px' }}></i>
-                    <h2>VMS <span className="highlight">Pro</span></h2>
+                    <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '56px', objectFit: 'contain', marginBottom: '14px' }} />
+                    <h2 style={{ fontSize: '24px' }}>Welcome to <span className="highlight">Esstee Exports</span></h2>
                     <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-                        {view === 'selection' ? 'Select your role to continue' : 'Sign in to continue'}
+                        {view === 'selection' ? 'Select your portal to continue' : 'Sign in to Visitor Management System'}
                     </p>
                 </div>
                 

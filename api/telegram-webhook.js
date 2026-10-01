@@ -41,7 +41,7 @@ export default async function handler(req, res) {
             if (parts.length < 2) {
                 // No host name provided — show help
                 await sendReply(chatId,
-                    `👋 *Welcome to VMS Pro Bot!*\n\nTo register for private visitor alerts, use the registration link provided by your office admin.\n\nExample: \`https://t.me/BotName?start=YOUR_NAME\``
+                    `👋 *Welcome to Esstee Exports Visitor Bot!*\n\nTo register for private visitor alerts, use the registration link provided by your office admin.\n\nExample: \`https://t.me/BotName?start=YOUR_NAME\``
                 );
                 return res.status(200).json({ ok: true });
             }

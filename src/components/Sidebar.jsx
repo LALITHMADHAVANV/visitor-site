@@ -21,9 +21,12 @@ export default function Sidebar() {
 
     return (
         <aside className="sidebar glass-panel">
-            <div className="brand">
-                <i className="fa-solid fa-shield-halved brand-icon"></i>
-                <h2>VMS <span className="highlight">Pro</span></h2>
+            <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src="/company-logo.png" alt="Esstee Exports Logo" style={{ height: '32px', maxWidth: '36px', objectFit: 'contain' }} />
+                <div>
+                    <h2 style={{ fontSize: '18px', margin: 0, lineHeight: 1.2 }}>Esstee <span className="highlight">Exports</span></h2>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>Security Portal</span>
+                </div>
             </div>
             
             <div style={{ padding: '0 24px', marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

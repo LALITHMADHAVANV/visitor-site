@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
 import { sendTelegramMessage } from '../telegram';
-import Badge from '../components/Badge';
+import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import './Scanner.css'; // Reuse scanner styles
 
 export default function MobileAction() {
@@ -24,6 +24,7 @@ export default function MobileAction() {
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
         documentTitle: visitor ? `Visitor_Badge_${visitor.id}` : 'Visitor_Badge',
+        pageStyle: THERMAL_80MM_PAGE_STYLE,
     });
 
     useEffect(() => {
@@ -139,11 +140,17 @@ export default function MobileAction() {
             <Badge ref={badgeRef} visitor={visitor} />
 
             <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '28px 24px', textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '6px' }}>
-                    <i className="fa-solid fa-shield-halved" style={{ fontSize: '26px', color: 'var(--accent-primary)' }}></i>
-                    <h2 style={{ margin: 0, fontSize: '22px' }}>Security Verification</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+                    <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '42px', objectFit: 'contain' }} />
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        Welcome to Esstee Exports
+                    </span>
                 </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <i className="fa-solid fa-shield-halved" style={{ fontSize: '22px', color: 'var(--accent-primary)' }}></i>
+                    <h2 style={{ margin: 0, fontSize: '20px' }}>Security Verification</h2>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '18px' }}>
                     {actionParam === 'checkout' ? 'Exit Gate Check-Out Verification' : 'Entrance Gate Check-In Verification'}
                 </p>
                 
@@ -355,7 +362,17 @@ export default function MobileAction() {
                         </p>
                         
                         <div style={{ background: 'white', padding: '20px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)' }}>
-                            <QRCodeSVG value={`${(window.location.origin.includes('.vercel.app')) ? 'https://visitor-site-texplus.vercel.app' : window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} size={220} />
+                            <QRCodeSVG 
+                                value={`${(window.location.origin.includes('.vercel.app')) ? 'https://visitor-site-texplus.vercel.app' : window.location.origin}/mobile-action?id=${visitorId}&action=checkout`} 
+                                size={220} 
+                                level="H"
+                                imageSettings={{
+                                    src: '/company-logo.png',
+                                    height: 48,
+                                    width: 48,
+                                    excavate: true
+                                }}
+                            />
                         </div>
 
                         <p style={{ color: 'var(--success)', fontSize: '14px', fontWeight: 'bold' }}>

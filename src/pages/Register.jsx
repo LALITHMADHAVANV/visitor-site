@@ -6,7 +6,7 @@ import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
 import { supabase } from '../supabaseClient';
 import { OFFICE_HOSTS } from '../hosts';
-import Badge from '../components/Badge';
+import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import './Register.css';
 
 const getIdValidation = (type, val) => {
@@ -92,6 +92,7 @@ export default function Register({ isKiosk = false }) {
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
         documentTitle: registeredVisitor ? `Visitor_Badge_${registeredVisitor.id}` : 'Visitor_Badge',
+        pageStyle: THERMAL_80MM_PAGE_STYLE,
     });
 
     const [formData, setFormData] = useState({
@@ -457,7 +458,17 @@ export default function Register({ isKiosk = false }) {
                     {/* Check-In QR Code for Visitor to Scan */}
                     <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                         <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)' }}>
-                            <QRCodeSVG value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} size={160} />
+                            <QRCodeSVG 
+                                value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} 
+                                size={160} 
+                                level="H"
+                                imageSettings={{
+                                    src: '/company-logo.png',
+                                    height: 36,
+                                    width: 36,
+                                    excavate: true
+                                }}
+                            />
                         </div>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '8px' }}>
                             Scan QR with mobile camera to check in
@@ -540,7 +551,17 @@ export default function Register({ isKiosk = false }) {
                             </p>
                             
                             <div style={{ background: 'white', padding: '24px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
-                                <QRCodeSVG value={qrUrl} size={240} />
+                                <QRCodeSVG 
+                                    value={qrUrl} 
+                                    size={240} 
+                                    level="H"
+                                    imageSettings={{
+                                        src: '/company-logo.png',
+                                        height: 52,
+                                        width: 52,
+                                        excavate: true
+                                    }}
+                                />
                             </div>
                             
                             <p style={{ fontFamily: 'monospace', fontSize: '18px', color: 'var(--accent-primary)', marginBottom: '24px' }}>
@@ -564,7 +585,17 @@ export default function Register({ isKiosk = false }) {
                                 </p>
                                 
                                 <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px', marginBottom: '12px' }}>
-                                    <QRCodeSVG value={exitQrUrl} size={200} />
+                                    <QRCodeSVG 
+                                        value={exitQrUrl} 
+                                        size={200} 
+                                        level="H"
+                                        imageSettings={{
+                                            src: '/company-logo.png',
+                                            height: 44,
+                                            width: 44,
+                                            excavate: true
+                                        }}
+                                    />
                                 </div>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
                                     Please proceed to meet your host.
@@ -594,6 +625,17 @@ export default function Register({ isKiosk = false }) {
     return (
         <section className="view-section active">
             <div className="glass-panel form-container">
+                {isKiosk && (
+                    <div style={{ textAlign: 'center', marginBottom: '28px', paddingBottom: '18px', borderBottom: '1px solid var(--border-color)' }}>
+                        <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '48px', objectFit: 'contain', marginBottom: '10px' }} />
+                        <h2 style={{ fontSize: '24px', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                            Welcome to <span style={{ color: 'var(--accent-primary)' }}>Esstee Exports</span>
+                        </h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+                            Self-service visitor check-in & digital pass registration
+                        </p>
+                    </div>
+                )}
                 <form onSubmit={handleSubmit}>
                     <div className="form-grid">
                         {/* Photo Capture */}

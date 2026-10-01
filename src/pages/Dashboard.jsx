@@ -3,7 +3,7 @@ import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
-import Badge from '../components/Badge';
+import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -17,6 +17,7 @@ export default function Dashboard() {
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
         documentTitle: selectedVisitor ? `Visitor_Badge_${selectedVisitor.id}` : 'Visitor_Badge',
+        pageStyle: THERMAL_80MM_PAGE_STYLE,
     });
 
     const printBadge = (visitor) => {
