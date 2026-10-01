@@ -7,7 +7,7 @@
     height: 2.125in; /* Standard CR80 badge dimensions */
     border: 1.5px solid #0f172a;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 6px 8px;
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
@@ -21,34 +21,34 @@
 
 /* Left Column: Company Logo at top + Exit QR at bottom */
 .badge-left-col {
-    width: 98px;
-    min-width: 98px;
+    width: 104px;
+    min-width: 104px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
     height: 100%;
     box-sizing: border-box;
-    padding-right: 2px;
+    padding: 2px 2px 2px 0;
 }
 
 .badge-company-logo-area {
     width: 100%;
-    height: 36px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .badge-logo-img {
-    max-width: 94px;
-    max-height: 34px;
+    max-width: 100px;
+    max-height: 46px;
     object-fit: contain;
     display: block;
 }
 
 .badge-logo-fallback {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.5px;
     color: #0f172a !important;
@@ -81,10 +81,10 @@
 
 .badge-qr-meta {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 1px;
-    margin-top: 1px;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 2px;
 }
 
 .badge-qr-label {
@@ -98,9 +98,9 @@
 
 .badge-qr-id {
     font-family: monospace;
-    font-size: 6.5px;
+    font-size: 7.5px;
     font-weight: 700;
-    color: #64748b !important;
+    color: #475569 !important;
     line-height: 1;
 }
 
@@ -111,35 +111,33 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    padding-left: 8px;
-    border-left: 1px dashed #cbd5e1;
+    justify-content: space-between;
+    padding: 2px 0 2px 8px;
+    border-left: 1.5px solid #0f172a;
     box-sizing: border-box;
 }
 
 .badge-field-row {
     display: flex;
     align-items: baseline;
-    font-size: 10px;
-    line-height: 1.25;
+    line-height: 1.35;
     white-space: nowrap;
     overflow: hidden;
 }
 
 .badge-field-label {
-    width: 72px;
-    min-width: 72px;
+    width: 76px;
+    min-width: 76px;
     flex-shrink: 0;
     font-weight: 700;
-    color: #334155 !important;
-    font-size: 9.5px;
+    color: #475569 !important;
+    font-size: 10px;
 }
 
 .badge-field-sep {
-    margin-right: 4px;
+    margin-right: 5px;
     font-weight: 700;
-    color: #334155 !important;
+    color: #475569 !important;
     flex-shrink: 0;
 }
 
@@ -148,14 +146,14 @@
     min-width: 0;
     font-weight: 600;
     color: #0f172a !important;
-    font-size: 10px;
+    font-size: 10.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .badge-name-val {
-    font-size: 12px;
+    font-size: 13.5px;
     font-weight: 800;
     color: #000000 !important;
     text-transform: capitalize;
