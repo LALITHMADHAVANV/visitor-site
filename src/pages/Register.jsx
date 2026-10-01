@@ -9,6 +9,75 @@ import { OFFICE_HOSTS } from '../hosts';
 import Badge from '../components/Badge';
 import './Register.css';
 
+const getIdValidation = (type, val) => {
+    const trimmed = (val || '').trim();
+    if (!type) {
+        return { isValid: false, badgeText: '', errorHint: '', maxLen: 30 };
+    }
+    switch (type) {
+        case 'Aadhar Number': {
+            const isValid = trimmed.length === 12;
+            const badgeText = `${trimmed.length}/12 Digits`;
+            const errorHint = trimmed.length > 0 && trimmed.length < 12 
+                ? `Must be exactly 12 digits (${12 - trimmed.length} more needed)` 
+                : '';
+            return { isValid, badgeText, errorHint, maxLen: 12 };
+        }
+        case 'PAN Number': {
+            const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+            const isValid = panPattern.test(trimmed);
+            const badgeText = `${trimmed.length}/10 Chars`;
+            let errorHint = '';
+            if (trimmed.length > 0 && trimmed.length < 10) {
+                errorHint = `Must be exactly 10 characters (${10 - trimmed.length} more needed)`;
+            } else if (trimmed.length === 10 && !isValid) {
+                errorHint = 'Invalid PAN format. Must be 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)';
+            }
+            return { isValid, badgeText, errorHint, maxLen: 10 };
+        }
+        case 'Passport': {
+            const passPattern = /^[A-Z][0-9]{7}$/;
+            const isValid = trimmed.length === 8 && passPattern.test(trimmed);
+            const badgeText = `${trimmed.length}/8 Chars`;
+            let errorHint = '';
+            if (trimmed.length > 0 && trimmed.length < 8) {
+                errorHint = `Must be 8 characters (${8 - trimmed.length} more needed)`;
+            } else if (trimmed.length === 8 && !passPattern.test(trimmed)) {
+                errorHint = 'Standard format: 1 letter followed by 7 digits (e.g. A1234567)';
+            }
+            return { isValid, badgeText, errorHint, maxLen: 8 };
+        }
+        case 'Voter ID': {
+            const isValid = trimmed.length === 10;
+            const badgeText = `${trimmed.length}/10 Chars`;
+            const errorHint = trimmed.length > 0 && trimmed.length < 10 
+                ? `Must be 10 characters (${10 - trimmed.length} more needed)` 
+                : '';
+            return { isValid, badgeText, errorHint, maxLen: 10 };
+        }
+        case 'Driving License': {
+            const isValid = trimmed.length >= 10;
+            const badgeText = `${trimmed.length} Chars`;
+            const errorHint = trimmed.length > 0 && trimmed.length < 10 
+                ? `Minimum 10 characters required (${10 - trimmed.length} more needed)` 
+                : '';
+            return { isValid, badgeText, errorHint, maxLen: 16 };
+        }
+        case 'Company ID': {
+            const isValid = trimmed.length >= 3;
+            const badgeText = `${trimmed.length} Chars`;
+            const errorHint = trimmed.length > 0 && trimmed.length < 3 ? 'Minimum 3 characters required' : '';
+            return { isValid, badgeText, errorHint, maxLen: 20 };
+        }
+        default: { // Other Government ID
+            const isValid = trimmed.length >= 4;
+            const badgeText = `${trimmed.length} Chars`;
+            const errorHint = trimmed.length > 0 && trimmed.length < 4 ? 'Minimum 4 characters required' : '';
+            return { isValid, badgeText, errorHint, maxLen: 25 };
+        }
+    }
+};
+
 export default function Register({ isKiosk = false }) {
     const webcamRef = useRef(null);
     const badgeRef = useRef(null);
@@ -41,6 +110,8 @@ export default function Register({ isKiosk = false }) {
         purpose: location.state?.preregData?.purpose || ''
     });
 
+    const idValidation = getIdValidation(formData.idType, formData.idNumber);
+
 
     const capture = useCallback(() => {
         const imageSrc = webcamRef.current.getScreenshot();
@@ -57,6 +128,38 @@ export default function Register({ isKiosk = false }) {
             // Strictly digits only, max 10 digits
             const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
             setFormData(prev => ({ ...prev, phone: digitsOnly }));
+            return;
+        }
+        if (name === 'idType') {
+            setFormData(prev => {
+                let cleanedId = prev.idNumber;
+                if (value === 'Aadhar Number') {
+                    cleanedId = cleanedId.replace(/\D/g, '').slice(0, 12);
+                } else if (value === 'PAN Number' || value === 'Voter ID') {
+                    cleanedId = cleanedId.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+                } else if (value === 'Passport') {
+                    cleanedId = cleanedId.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+                } else if (value === 'Driving License') {
+                    cleanedId = cleanedId.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
+                }
+                return { ...prev, idType: value, idNumber: cleanedId };
+            });
+            return;
+        }
+        if (name === 'idNumber') {
+            let formatted = value;
+            if (formData.idType === 'Aadhar Number') {
+                formatted = value.replace(/\D/g, '').slice(0, 12);
+            } else if (formData.idType === 'PAN Number' || formData.idType === 'Voter ID') {
+                formatted = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+            } else if (formData.idType === 'Passport') {
+                formatted = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+            } else if (formData.idType === 'Driving License') {
+                formatted = value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 16);
+            } else {
+                formatted = value.toUpperCase().slice(0, 25);
+            }
+            setFormData(prev => ({ ...prev, idNumber: formatted }));
             return;
         }
         if (name === 'hasVehicle') {
@@ -90,10 +193,38 @@ export default function Register({ isKiosk = false }) {
             return;
         }
 
-        // 2. ID Proof validation: if type chosen, number is required
-        if (formData.idType && !formData.idNumber.trim()) {
+        // 2. ID Proof validation: mandatory and format check
+        if (!formData.idType) {
+            alert("Please select an ID Proof Type.");
+            return;
+        }
+        const idNumberTrimmed = formData.idNumber.trim();
+        if (!idNumberTrimmed) {
             alert(`Please enter the ID Number for the selected ID Proof Type (${formData.idType}).`);
             return;
+        }
+        const idCheck = getIdValidation(formData.idType, idNumberTrimmed);
+        if (!idCheck.isValid) {
+            alert(idCheck.errorHint || `Please enter a valid ${formData.idType}.`);
+            return;
+        }
+
+        // 3. Duplicate check for active visits (Phone Number and ID Proof Number)
+        try {
+            const allVisitors = await db.visitors.toArray();
+            const activeVisitor = allVisitors.find(v => 
+                v.status === 'checked-in' && (
+                    v.phone === phoneDigits || 
+                    (v.idNumber && v.idNumber.trim().toUpperCase() === idNumberTrimmed.toUpperCase())
+                )
+            );
+            if (activeVisitor) {
+                const matchType = activeVisitor.phone === phoneDigits ? `Phone Number (${phoneDigits})` : `ID Proof Number (${idNumberTrimmed})`;
+                alert(`Cannot register: A visitor with this ${matchType} (${activeVisitor.name || 'Visitor'}) is currently checked in. They must check out before registering again.`);
+                return;
+            }
+        } catch (err) {
+            console.warn("Could not check active visitor records:", err);
         }
 
         // 3. Vehicle validation
@@ -598,46 +729,67 @@ export default function Register({ isKiosk = false }) {
                                 <div className="form-group">
                                     <label>
                                         <i className="fa-solid fa-address-card" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        ID Proof Type
+                                        ID Proof Type *
                                     </label>
                                     <select 
                                         name="idType" 
+                                        required
                                         value={formData.idType} 
                                         onChange={handleChange}
                                         className="form-control"
                                     >
-                                        <option value="">-- Select ID Proof Type --</option>
-                                        <option value="Aadhar Number">Aadhar Number</option>
-                                        <option value="PAN Number">PAN Number</option>
-                                        <option value="Company ID">Company ID</option>
+                                        <option value="">-- Select ID Proof Type * --</option>
+                                        <option value="Aadhar Number">Aadhar Number (12 Digits)</option>
+                                        <option value="PAN Number">PAN Number (10 Chars)</option>
                                         <option value="Driving License">Driving License</option>
-                                        <option value="Passport">Passport</option>
-                                        <option value="Voter ID">Voter ID</option>
+                                        <option value="Passport">Passport (8 Chars)</option>
+                                        <option value="Voter ID">Voter ID (10 Chars)</option>
+                                        <option value="Company ID">Company ID</option>
                                         <option value="Other">Other Government ID</option>
                                     </select>
                                 </div>
 
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        ID Number {formData.idType ? '*' : ''}
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span>
+                                            <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                            ID Number *
+                                        </span>
+                                        {formData.idType && idValidation.badgeText && (
+                                            <span style={{ 
+                                                fontSize: '11px', 
+                                                fontWeight: '600', 
+                                                color: idValidation.isValid ? '#10b981' : '#f59e0b',
+                                                backgroundColor: idValidation.isValid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px'
+                                            }}>
+                                                {idValidation.badgeText}
+                                            </span>
+                                        )}
                                     </label>
                                     <input 
                                         type="text" 
                                         name="idNumber" 
-                                        required={!!formData.idType}
+                                        required
                                         value={formData.idNumber} 
                                         onChange={handleChange} 
+                                        maxLength={idValidation.maxLen || undefined}
                                         placeholder={
-                                            formData.idType === 'Aadhar Number' ? 'e.g. 1234 5678 9012' :
-                                            formData.idType === 'PAN Number' ? 'e.g. ABCDE1234F' :
-                                            formData.idType === 'Company ID' ? 'e.g. EMP-9821' :
-                                            formData.idType === 'Driving License' ? 'e.g. DL-1420110012345' :
-                                            formData.idType === 'Passport' ? 'e.g. A1234567' :
-                                            formData.idType === 'Voter ID' ? 'e.g. ABC1234567' :
+                                            formData.idType === 'Aadhar Number' ? 'Enter 12-digit Aadhar (e.g. 1234 5678 9012)' :
+                                            formData.idType === 'PAN Number' ? 'Enter 10-char PAN (e.g. ABCDE1234F)' :
+                                            formData.idType === 'Company ID' ? 'Enter Company EMP ID (e.g. EMP-9821)' :
+                                            formData.idType === 'Driving License' ? 'Enter DL number (e.g. DL-1420110012345)' :
+                                            formData.idType === 'Passport' ? 'Enter 8-char Passport (e.g. A1234567)' :
+                                            formData.idType === 'Voter ID' ? 'Enter 10-char Voter ID (e.g. ABC1234567)' :
                                             (formData.idType ? 'Enter ID document number' : 'Select ID Type first')
                                         } 
                                     />
+                                    {idValidation.errorHint && (
+                                        <span style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'block' }}>
+                                            {idValidation.errorHint}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
