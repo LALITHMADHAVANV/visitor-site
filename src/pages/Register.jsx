@@ -1023,7 +1023,6 @@ export default function Register({ isKiosk = false }) {
                     </div>
                     
                     <div className="form-actions mt-4">
-                        <button type="button" className="btn btn-outline btn-action-cancel" onClick={() => navigate('/')}>Cancel</button>
                         <button type="submit" className="btn btn-primary btn-action-submit" disabled={submitting}>
                             {submitting ? (
                                 <>

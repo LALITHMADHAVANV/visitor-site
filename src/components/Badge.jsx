@@ -2,9 +2,9 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import './Badge.css';
 
-export const THERMAL_80MM_PAGE_STYLE = `
+export const THERMAL_58MM_PAGE_STYLE = `
   @page {
-    size: 80mm auto;
+    size: 58mm auto;
     margin: 0mm !important;
   }
   @media print {
@@ -16,22 +16,22 @@ export const THERMAL_80MM_PAGE_STYLE = `
     html, body {
       margin: 0 !important;
       padding: 0 !important;
-      width: 100% !important;
+      width: 58mm !important;
       background: #ffffff !important;
     }
     .badge-print-container {
       display: block !important;
       position: relative !important;
-      width: 100% !important;
-      margin: 0 !important;
+      width: 58mm !important;
+      margin: 0 auto !important;
       padding: 0 !important;
       background: #ffffff !important;
     }
     .badge-thermal-slip {
-      width: 76mm !important;
-      max-width: 76mm !important;
+      width: 48mm !important;
+      max-width: 48mm !important;
       margin: 0 auto !important;
-      padding: 3mm 2mm 5mm 2mm !important;
+      padding: 2mm 0.5mm 4mm 0.5mm !important;
       border: none !important;
       box-shadow: none !important;
       background: #ffffff !important;
@@ -40,6 +40,9 @@ export const THERMAL_80MM_PAGE_STYLE = `
     }
   }
 `;
+
+// Backward compatibility alias for all existing imports
+export const THERMAL_80MM_PAGE_STYLE = THERMAL_58MM_PAGE_STYLE;
 
 const Badge = React.forwardRef(({ visitor }, ref) => {
     if (!visitor) return null;
@@ -99,49 +102,46 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                     <h2 className="badge-pass-title">VISITOR PASS</h2>
                 </div>
 
-                {/* 2. Top Grid: Photo on Left, Large QR Code & Details on Right */}
-                <div className="badge-top-grid">
-                    <div className="badge-top-left">
-                        <div className="badge-photo-wrapper">
-                            {visitor.photoData ? (
-                                <img 
-                                    src={visitor.photoData} 
-                                    alt="Visitor" 
-                                    className="badge-visitor-photo" 
-                                />
-                            ) : (
-                                <div className="badge-photo-placeholder">
-                                    <i className="fa-solid fa-user"></i>
-                                    <span>NO PHOTO</span>
-                                </div>
-                            )}
+                {/* 2. Visitor Photo (Centered for 58mm TVS RP 3230) */}
+                <div className="badge-photo-wrapper">
+                    {visitor.photoData ? (
+                        <img 
+                            src={visitor.photoData} 
+                            alt="Visitor" 
+                            className="badge-visitor-photo" 
+                        />
+                    ) : (
+                        <div className="badge-photo-placeholder">
+                            <i className="fa-solid fa-user"></i>
+                            <span>NO PHOTO</span>
                         </div>
-                    </div>
+                    )}
+                </div>
 
-                    <div className="badge-top-right">
-                        <div className="badge-qr-container">
-                            <QRCodeSVG 
-                                value={exitQrUrl} 
-                                size={108} 
-                                level="M" 
-                                fgColor="#000000"
-                                bgColor="#ffffff"
-                            />
-                        </div>
-                        <div className="badge-pass-meta">
-                            <div className="meta-line">
-                                <span className="meta-label">Date :</span>
-                                <span className="meta-val">{formattedDate}</span>
-                            </div>
-                            <div className="meta-line">
-                                <span className="meta-label">In :</span>
-                                <span className="meta-val">{formattedInTime}</span>
-                            </div>
-                            <div className="meta-line">
-                                <span className="meta-label">Vehicle :</span>
-                                <span className="meta-val">{vehicleNo.toUpperCase()}</span>
-                            </div>
-                        </div>
+                {/* 3. QR Code (Centered for 58mm) */}
+                <div className="badge-qr-container">
+                    <QRCodeSVG 
+                        value={exitQrUrl} 
+                        size={104} 
+                        level="M" 
+                        fgColor="#000000"
+                        bgColor="#ffffff"
+                    />
+                </div>
+
+                {/* 4. Details Under QR: Date, In, Vehicle */}
+                <div className="badge-pass-meta">
+                    <div className="meta-line">
+                        <span className="meta-label">Date :</span>
+                        <span className="meta-val">{formattedDate}</span>
+                    </div>
+                    <div className="meta-line">
+                        <span className="meta-label">In :</span>
+                        <span className="meta-val">{formattedInTime}</span>
+                    </div>
+                    <div className="meta-line">
+                        <span className="meta-label">Vehicle :</span>
+                        <span className="meta-val">{vehicleNo.toUpperCase()}</span>
                     </div>
                 </div>
 
