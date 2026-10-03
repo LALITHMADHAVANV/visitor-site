@@ -40,28 +40,17 @@ function AppContent() {
         {/* Public Routes */}
         <Route path="/mobile-action" element={<MobileAction />} />
         <Route path="/kiosk" element={
-        <div style={{ minHeight: '100vh', background: 'var(--bg-dark)', display: 'flex', flexDirection: 'column' }}>
-          <header style={{ 
-            background: '#ffffff', 
-            padding: '14px 28px', 
-            borderBottom: '1px solid var(--border-color)', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '34px', objectFit: 'contain' }} />
-              <div>
-                <h1 style={{ fontSize: '17px', margin: 0, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>Esstee Exports</h1>
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visitor Self-Service Kiosk</span>
+        <div className="kiosk-page-wrapper">
+          <header className="kiosk-header">
+            <div className="kiosk-header-brand">
+              <img src="/company-logo.png" alt="Esstee Exports" className="kiosk-header-logo" />
+              <div className="kiosk-header-text">
+                <h1 className="kiosk-header-title">Esstee Exports</h1>
+                <span className="kiosk-header-subtitle">Visitor Self-Service Kiosk</span>
               </div>
             </div>
-            <a href="/" className="btn btn-outline btn-sm" style={{ textDecoration: 'none' }}>
-              <i className="fa-solid fa-arrow-left"></i> Staff Portal
-            </a>
           </header>
-          <main style={{ flex: 1, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+          <main className="kiosk-main-body">
             <Register isKiosk={true} />
           </main>
         </div>

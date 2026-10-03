@@ -14,10 +14,8 @@ export default function Dashboard() {
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [previewVisitor, setPreviewVisitor] = useState(null);
     const [allVisitors, setAllVisitors] = useState([]);
-    const [preregisteredList, setPreregisteredList] = useState([]);
-    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'inside', 'checked-out', 'expected'
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'inside', 'checked-out'
     const [searchTerm, setSearchTerm] = useState('');
-    const [dateRange, setDateRange] = useState('today'); // 'today', 'yesterday', 'week', 'all'
 
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
@@ -32,12 +30,8 @@ export default function Dashboard() {
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            const [visitorsData, preregData] = await Promise.all([
-                db.visitors.toArray(),
-                db.preregistered.toArray()
-            ]);
+            const visitorsData = await db.visitors.toArray();
             setAllVisitors(visitorsData || []);
-            setPreregisteredList(preregData || []);
         } catch (error) {
             console.error("Error loading dashboard data:", error);
         }
@@ -52,9 +46,6 @@ export default function Dashboard() {
             channel = supabase
                 .channel('dashboard-realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'visitors' }, () => {
-                    fetchDashboardData();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'preregistered' }, () => {
                     fetchDashboardData();
                 })
                 .subscribe();
@@ -75,64 +66,57 @@ export default function Dashboard() {
         };
     }, [fetchDashboardData]);
 
-    // Get date range boundaries
-    const getDateBounds = useCallback((range) => {
+    // Today's visitors (anyone registered today or currently checked-in inside)
+    const todayVisitors = useMemo(() => {
         const now = new Date();
         const startOfToday = new Date(now);
         startOfToday.setHours(0, 0, 0, 0);
         const endOfToday = new Date(startOfToday);
         endOfToday.setDate(endOfToday.getDate() + 1);
 
-        switch (range) {
-            case 'today':
-                return { start: startOfToday, end: endOfToday };
-            case 'yesterday': {
-                const startYesterday = new Date(startOfToday);
-                startYesterday.setDate(startYesterday.getDate() - 1);
-                return { start: startYesterday, end: startOfToday };
-            }
-            case 'week': {
-                const startWeek = new Date(startOfToday);
-                startWeek.setDate(startWeek.getDate() - 7);
-                return { start: startWeek, end: endOfToday };
-            }
-            case 'all':
-            default:
-                return { start: new Date(0), end: endOfToday };
-        }
-    }, []);
-
-    // Visitors filtered by date range
-    const dateFilteredVisitors = useMemo(() => {
-        const { start, end } = getDateBounds(dateRange);
         return allVisitors.filter(v => {
             const time = v.checkInTime || v.created_at;
             if (!time) return false;
             const d = new Date(time);
-            return d >= start && d < end;
+            return (d >= startOfToday && d < endOfToday) || v.status === 'checked-in';
         });
-    }, [allVisitors, dateRange, getDateBounds]);
+    }, [allVisitors]);
 
     const insideVisitors = useMemo(() => {
-        return dateFilteredVisitors.filter(v => v.status === 'checked-in');
-    }, [dateFilteredVisitors]);
+        return allVisitors.filter(v => v.status === 'checked-in');
+    }, [allVisitors]);
 
     const checkedOutVisitors = useMemo(() => {
-        return dateFilteredVisitors.filter(v => v.status === 'checked-out');
-    }, [dateFilteredVisitors]);
+        return todayVisitors.filter(v => v.status === 'checked-out');
+    }, [todayVisitors]);
 
-    const expectedToday = useMemo(() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+    // Helper to check if a visitor has visited before (Old / Returning visitor)
+    const isOldVisitor = useCallback((visitor) => {
+        if (!visitor) return false;
+        const vPhone = (visitor.phone || '').trim();
+        const vIdNumber = (visitor.idNumber || '').trim();
+        if (!vPhone && !vIdNumber) return false;
 
-        return preregisteredList.filter(p => {
-            if (!p.expectedDate) return false;
-            const pDate = new Date(p.expectedDate);
-            return pDate >= today && pDate < tomorrow && p.status === 'expected';
+        const vTime = new Date(visitor.checkInTime || visitor.created_at || Date.now()).getTime();
+
+        return allVisitors.some(other => {
+            if (other.id === visitor.id) return false;
+            const matchPhone = vPhone && other.phone && other.phone.trim() === vPhone;
+            const matchId = vIdNumber && other.idNumber && other.idNumber.trim() === vIdNumber;
+            if (!matchPhone && !matchId) return false;
+
+            const otherTime = new Date(other.checkInTime || other.created_at || 0).getTime();
+            return otherTime < vTime;
         });
-    }, [preregisteredList]);
+    }, [allVisitors]);
+
+    const oldVisitors = useMemo(() => {
+        return todayVisitors.filter(v => isOldVisitor(v));
+    }, [todayVisitors, isOldVisitor]);
+
+    const newVisitors = useMemo(() => {
+        return todayVisitors.filter(v => !isOldVisitor(v));
+    }, [todayVisitors, isOldVisitor]);
 
     const handleCheckout = async (id, name) => {
         if (window.confirm(`Check out ${name || 'visitor'} now?`)) {
@@ -169,16 +153,18 @@ export default function Dashboard() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const dateRangeLabel = dateRange === 'today' ? 'Today' : dateRange === 'yesterday' ? 'Yesterday' : dateRange === 'week' ? 'This Week' : 'All Time';
-
     // Filtered visitors according to search & active tab
     const filteredVisitors = useMemo(() => {
-        let baseList = dateFilteredVisitors;
+        let baseList = todayVisitors;
 
         if (statusFilter === 'inside') {
-            baseList = baseList.filter(v => v.status === 'checked-in');
+            baseList = insideVisitors;
         } else if (statusFilter === 'checked-out') {
-            baseList = baseList.filter(v => v.status === 'checked-out');
+            baseList = checkedOutVisitors;
+        } else if (statusFilter === 'new') {
+            baseList = newVisitors;
+        } else if (statusFilter === 'old') {
+            baseList = oldVisitors;
         }
 
         if (!searchTerm.trim()) {
@@ -195,52 +181,33 @@ export default function Dashboard() {
             v.hostName?.toLowerCase().includes(term) ||
             v.phone?.includes(term)
         ).sort((a, b) => new Date(b.checkInTime || 0) - new Date(a.checkInTime || 0));
-    }, [dateFilteredVisitors, statusFilter, searchTerm]);
+    }, [todayVisitors, insideVisitors, checkedOutVisitors, newVisitors, oldVisitors, statusFilter, searchTerm]);
 
     return (
         <section className="dashboard-page">
-            {/* Date Range Selector */}
-            <div className="date-range-bar">
-                <div className="date-range-pills">
-                    {[
-                        { key: 'today', label: 'Today', icon: 'fa-solid fa-calendar-day' },
-                        { key: 'yesterday', label: 'Yesterday', icon: 'fa-solid fa-calendar-minus' },
-                        { key: 'week', label: 'Last 7 Days', icon: 'fa-solid fa-calendar-week' },
-                        { key: 'all', label: 'All Time', icon: 'fa-solid fa-calendar' },
-                    ].map(opt => (
-                        <button
-                            key={opt.key}
-                            className={`date-pill ${dateRange === opt.key ? 'active' : ''}`}
-                            onClick={() => { setDateRange(opt.key); setStatusFilter('all'); }}
-                        >
-                            <i className={opt.icon}></i>
-                            <span>{opt.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             {/* Quick Stat Cards */}
             <div className="stats-grid">
+                {/* 1. Total Today */}
                 <div 
                     className={`stat-card stat-total ${statusFilter === 'all' ? 'active-filter' : ''}`}
                     onClick={() => setStatusFilter('all')}
                     role="button"
-                    title={`Click to view all visitors — ${dateRangeLabel}`}
+                    title="Click to view all visitors today"
                 >
                     <div className="stat-icon icon-blue">
                         <i className="fa-solid fa-users"></i>
                     </div>
                     <div className="stat-content">
-                        <span className="stat-label">Total — {dateRangeLabel}</span>
-                        <h2 className="stat-value">{dateFilteredVisitors.length}</h2>
-                        <span className="stat-subtext">Registered visitors</span>
+                        <span className="stat-label">Total Today</span>
+                        <h2 className="stat-value text-primary">{todayVisitors.length}</h2>
+                        <span className="stat-subtext">Registered today</span>
                     </div>
                 </div>
 
+                {/* 2. Currently Inside */}
                 <div 
                     className={`stat-card stat-inside ${statusFilter === 'inside' ? 'active-filter' : ''}`}
-                    onClick={() => setStatusFilter('inside')}
+                    onClick={() => setStatusFilter(statusFilter === 'inside' ? 'all' : 'inside')}
                     role="button"
                     title="Click to filter currently inside"
                 >
@@ -254,19 +221,37 @@ export default function Dashboard() {
                     </div>
                 </div>
 
+                {/* 3. New Visitors */}
                 <div 
-                    className={`stat-card stat-expected ${statusFilter === 'expected' ? 'active-filter' : ''}`}
-                    onClick={() => setStatusFilter(statusFilter === 'expected' ? 'all' : 'expected')}
+                    className={`stat-card stat-new ${statusFilter === 'new' ? 'active-filter' : ''}`}
+                    onClick={() => setStatusFilter(statusFilter === 'new' ? 'all' : 'new')}
                     role="button"
-                    title="Click to view expected guests"
+                    title="Click to filter new (first-time) visitors today"
                 >
-                    <div className="stat-icon icon-amber">
-                        <i className="fa-regular fa-clock"></i>
+                    <div className="stat-icon icon-cyan">
+                        <i className="fa-solid fa-user-plus"></i>
                     </div>
                     <div className="stat-content">
-                        <span className="stat-label">Expected Today</span>
-                        <h2 className="stat-value text-warning">{expectedToday.length}</h2>
-                        <span className="stat-subtext">Pre-registered guests</span>
+                        <span className="stat-label">New Visitors</span>
+                        <h2 className="stat-value" style={{ color: '#0891b2' }}>{newVisitors.length}</h2>
+                        <span className="stat-subtext">First-time today</span>
+                    </div>
+                </div>
+
+                {/* 3. Old Visitors */}
+                <div 
+                    className={`stat-card stat-old ${statusFilter === 'old' ? 'active-filter' : ''}`}
+                    onClick={() => setStatusFilter(statusFilter === 'old' ? 'all' : 'old')}
+                    role="button"
+                    title="Click to filter old (returning) visitors"
+                >
+                    <div className="stat-icon icon-purple">
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div className="stat-content">
+                        <span className="stat-label">Old Visitors</span>
+                        <h2 className="stat-value" style={{ color: '#7c3aed' }}>{oldVisitors.length}</h2>
+                        <span className="stat-subtext">Returning guests</span>
                     </div>
                 </div>
             </div>
@@ -282,7 +267,7 @@ export default function Dashboard() {
                                 className={`pill-btn ${statusFilter === 'all' ? 'active' : ''}`}
                                 onClick={() => setStatusFilter('all')}
                             >
-                                All ({dateRangeLabel}) <span className="pill-count">{dateFilteredVisitors.length}</span>
+                                All (Today) <span className="pill-count">{todayVisitors.length}</span>
                             </button>
                             <button 
                                 className={`pill-btn ${statusFilter === 'inside' ? 'active' : ''}`}
@@ -291,19 +276,23 @@ export default function Dashboard() {
                                 Currently Inside <span className="pill-count count-green">{insideVisitors.length}</span>
                             </button>
                             <button 
+                                className={`pill-btn ${statusFilter === 'new' ? 'active' : ''}`}
+                                onClick={() => setStatusFilter('new')}
+                            >
+                                New Visitors <span className="pill-count count-blue">{newVisitors.length}</span>
+                            </button>
+                            <button 
+                                className={`pill-btn ${statusFilter === 'old' ? 'active' : ''}`}
+                                onClick={() => setStatusFilter('old')}
+                            >
+                                Old Visitors <span className="pill-count count-purple">{oldVisitors.length}</span>
+                            </button>
+                            <button 
                                 className={`pill-btn ${statusFilter === 'checked-out' ? 'active' : ''}`}
                                 onClick={() => setStatusFilter('checked-out')}
                             >
                                 Checked Out <span className="pill-count">{checkedOutVisitors.length}</span>
                             </button>
-                            {expectedToday.length > 0 && (
-                                <button 
-                                    className={`pill-btn ${statusFilter === 'expected' ? 'active' : ''}`}
-                                    onClick={() => setStatusFilter('expected')}
-                                >
-                                    Expected <span className="pill-count count-amber">{expectedToday.length}</span>
-                                </button>
-                            )}
                         </div>
                     </div>
 
@@ -344,63 +333,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Table Content */}
-                {statusFilter === 'expected' ? (
-                    /* Show Expected Visitors */
-                    <div className="table-responsive">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
-                                    <th>Guest Name</th>
-                                    <th>Company</th>
-                                    <th>Person to Visit (Host)</th>
-                                    <th>Expected Date</th>
-                                    <th>Purpose</th>
-                                    <th style={{ textAlign: 'right' }}>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {expectedToday.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="7">
-                                            <div className="empty-state">
-                                                <i className="fa-regular fa-calendar-xmark empty-state-icon"></i>
-                                                <p>No expected visitors scheduled for today.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    expectedToday.map((p, index) => (
-                                        <tr key={p.id}>
-                                            <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                                                {index + 1}
-                                            </td>
-                                            <td>
-                                                <strong>{p.name}</strong>
-                                            </td>
-                                            <td>{p.company || '-'}</td>
-                                            <td>
-                                                <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{p.hostName}</span>
-                                            </td>
-                                            <td>{new Date(p.expectedDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                                            <td>{p.purpose || '-'}</td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <button 
-                                                    className="btn btn-primary btn-sm"
-                                                    onClick={() => navigate('/register', { state: { preregData: p } })}
-                                                >
-                                                    <i className="fa-solid fa-check"></i> Check In
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    /* Show Normal Visitors Table */
-                    <div className="table-responsive">
+                <div className="table-responsive">
                         <table className="data-table">
                             <thead>
                                 <tr>
@@ -426,7 +359,11 @@ export default function Dashboard() {
                                                         ? `No visitors match "${searchTerm}"`
                                                         : statusFilter === 'inside'
                                                             ? 'No visitors currently inside the premises.'
-                                                            : 'No visitors recorded for today.'
+                                                            : statusFilter === 'new'
+                                                                ? 'No new (first-time) visitors recorded today.'
+                                                                : statusFilter === 'old'
+                                                                    ? 'No old (returning) visitors recorded today.'
+                                                                    : 'No visitors recorded for today.'
                                                     }
                                                 </p>
                                                 {searchTerm && (
@@ -501,11 +438,16 @@ export default function Dashboard() {
                                                         </div>
                                                         <div>
                                                             <div 
-                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer' }}
+                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                                                                 onClick={() => setPreviewVisitor(v)}
                                                                 title="Touch / click to view visitor details"
                                                             >
-                                                                {v.name}
+                                                                <span>{v.name}</span>
+                                                                {isOldVisitor(v) ? (
+                                                                    <span className="badge-tag-returning" title="Returning visitor (visited previously)">Old</span>
+                                                                ) : (
+                                                                    <span className="badge-tag-new" title="First-time visitor">New</span>
+                                                                )}
                                                             </div>
                                                             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
                                                                 {v.company && <span>{v.company}</span>}
@@ -660,7 +602,6 @@ export default function Dashboard() {
                             </tbody>
                         </table>
                     </div>
-                )}
             </div>
             
             {/* Hidden Badge for Printing */}
@@ -711,7 +652,18 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="visitor-modal-identity-info">
-                                    <h2 className="visitor-modal-name">{previewVisitor.name}</h2>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <h2 className="visitor-modal-name" style={{ margin: 0 }}>{previewVisitor.name}</h2>
+                                        {isOldVisitor(previewVisitor) ? (
+                                            <span className="badge-tag-returning" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '4px' }}></i> Returning Visitor (Old)
+                                            </span>
+                                        ) : (
+                                            <span className="badge-tag-new" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                <i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> New Visitor
+                                            </span>
+                                        )}
+                                    </div>
                                     {previewVisitor.company && (
                                         <div className="visitor-modal-company">
                                             <i className="fa-solid fa-building"></i>

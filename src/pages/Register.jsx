@@ -442,64 +442,37 @@ export default function Register({ isKiosk = false }) {
                 {/* Hidden Badge Component for Printing */}
                 <Badge ref={badgeRef} visitor={registeredVisitor} />
 
-                <div className="glass-panel form-container" style={{ maxWidth: '560px', margin: '0 auto', padding: '32px' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                        <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h2 style={{ color: 'var(--success)', marginBottom: '8px' }}>Visitor Registered & Checked In!</h2>
-                        <span style={{ 
-                            background: 'rgba(59, 130, 246, 0.15)', 
-                            color: 'var(--accent-primary)', 
-                            padding: '6px 16px', 
-                            borderRadius: '20px', 
-                            fontFamily: 'monospace', 
-                            fontWeight: 'bold',
-                            fontSize: '15px'
-                        }}>
+                <div className="glass-panel form-container visitor-registered-card">
+                    <div className="registered-success-header">
+                        <i className="fa-solid fa-circle-check text-success registered-success-icon"></i>
+                        <h2 className="registered-success-title">Visitor Registered & Checked In!</h2>
+                        <span className="registered-badge-id">
                             {registeredVisitor.id}
                         </span>
                     </div>
 
                     {/* Visitor Details Summary Card */}
-                    <div style={{ 
-                        background: '#f8fafc', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '16px', 
-                        padding: '20px', 
-                        marginBottom: '20px',
-                        display: 'flex',
-                        gap: '20px',
-                        alignItems: 'center'
-                    }}>
+                    <div className="visitor-summary-card">
                         {/* Photo Thumbnail */}
-                        <div style={{ 
-                            width: '90px', 
-                            height: '90px', 
-                            borderRadius: '12px', 
-                            overflow: 'hidden', 
-                            background: '#e2e8f0', 
-                            flexShrink: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
+                        <div className="visitor-summary-photo">
                             {registeredVisitor.photoData ? (
-                                <img src={registeredVisitor.photoData} alt={registeredVisitor.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={registeredVisitor.photoData} alt={registeredVisitor.name} />
                             ) : (
-                                <i className="fa-solid fa-user" style={{ fontSize: '36px', color: 'var(--text-secondary)' }}></i>
+                                <i className="fa-solid fa-user"></i>
                             )}
                         </div>
 
                         {/* Details */}
-                        <div style={{ flex: 1 }}>
-                            <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', color: 'var(--text-primary)' }}>{registeredVisitor.name}</h3>
+                        <div className="visitor-summary-details">
+                            <h3 className="visitor-summary-name">{registeredVisitor.name}</h3>
                             {registeredVisitor.company && (
-                                <p style={{ margin: '0 0 8px 0', color: 'var(--accent-primary)', fontSize: '14px', fontWeight: '500' }}>
-                                    <i className="fa-solid fa-building" style={{ marginRight: '6px' }}></i>
+                                <p className="visitor-summary-company">
+                                    <i className="fa-solid fa-building"></i>
                                     {registeredVisitor.company}
                                 </p>
                             )}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                <div><strong>Visitor No:</strong> <span style={{ fontFamily: 'monospace', color: 'var(--accent-primary)', fontWeight: 'bold' }}>{registeredVisitor.visitorNo || registeredVisitor.id}</span></div>
+                            <div className="visitor-summary-grid">
+                                <div><strong>Visitor No:</strong> <span className="summary-val-badge">{registeredVisitor.visitorNo || registeredVisitor.id}</span></div>
                                 <div><strong>Host:</strong> {registeredVisitor.hostName}</div>
                                 <div><strong>Purpose:</strong> {registeredVisitor.purpose}</div>
                                 <div><strong>Phone:</strong> {registeredVisitor.phone || 'N/A'}</div>
@@ -516,8 +489,8 @@ export default function Register({ isKiosk = false }) {
                     </div>
 
                     {/* Check-In QR Code for Visitor to Scan */}
-                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                        <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow)' }}>
+                    <div className="visitor-summary-qr-section">
+                        <div className="visitor-summary-qr-box">
                             <QRCodeSVG 
                                 value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} 
                                 size={160} 
@@ -530,47 +503,35 @@ export default function Register({ isKiosk = false }) {
                                 }}
                             />
                         </div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '8px' }}>
+                        <p className="qr-hint-text">
                             Scan QR with mobile camera to check in
                         </p>
                     </div>
 
                     {/* Telegram Host Arrival Alert Notice */}
-                    <div style={{ 
-                        background: '#eff6ff', 
-                        border: '1px solid #bfdbfe', 
-                        borderRadius: '12px', 
-                        padding: '14px 18px', 
-                        marginBottom: '24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        textAlign: 'left'
-                    }}>
-                        <i className="fa-brands fa-telegram" style={{ color: 'var(--accent-primary)', fontSize: '24px' }}></i>
-                        <div style={{ color: '#1e3a8a', fontSize: '13px' }}>
+                    <div className="telegram-alert-banner">
+                        <i className="fa-brands fa-telegram"></i>
+                        <div>
                             An arrival notification will be sent to <strong>{registeredVisitor.hostName}</strong> via Telegram upon scanning the Check-In QR.
                         </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div className="registered-actions">
                         <button 
                             type="button" 
-                            className="btn btn-primary w-100" 
+                            className="btn btn-primary btn-print-badge" 
                             onClick={handlePrint}
-                            style={{ padding: '14px', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
                             <i className="fa-solid fa-print"></i>
                             Print Visitor Badge
                         </button>
                         
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="registered-sub-actions">
                             <button 
                                 type="button" 
                                 className="btn btn-secondary" 
                                 onClick={handleNextVisitor}
-                                style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                             >
                                 <i className="fa-solid fa-user-plus"></i>
                                 Next Visitor
@@ -580,7 +541,6 @@ export default function Register({ isKiosk = false }) {
                                 type="button" 
                                 className="btn btn-outline" 
                                 onClick={() => navigate('/dashboard')}
-                                style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                             >
                                 <i className="fa-solid fa-chart-line"></i>
                                 Dashboard
@@ -601,30 +561,30 @@ export default function Register({ isKiosk = false }) {
         return (
             <section className="view-section active">
                 <Badge ref={badgeRef} visitor={registeredVisitor} />
-                <div className="glass-panel form-container" style={{ textAlign: 'center', padding: '48px 32px', maxWidth: '500px', margin: '0 auto' }}>
+                <div className="glass-panel form-container kiosk-success-card">
                     {visitorStatus === 'registered' && (
                         <>
-                            <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '24px' }}></i>
+                            <i className="fa-solid fa-circle-check text-success kiosk-success-icon"></i>
                             <h2>Registration Successful!</h2>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                            <p className="kiosk-instruction-text">
                                 Scan this <strong>Check-In QR Code</strong> at the security desk to check in.
                             </p>
                             
-                            <div style={{ background: 'white', padding: '24px', display: 'inline-block', borderRadius: '16px', marginBottom: '24px' }}>
+                            <div className="kiosk-qr-wrapper">
                                 <QRCodeSVG 
                                     value={qrUrl} 
-                                    size={240} 
+                                    size={220} 
                                     level="H"
                                     imageSettings={{
                                         src: '/company-logo.png',
-                                        height: 52,
-                                        width: 52,
+                                        height: 48,
+                                        width: 48,
                                         excavate: true
                                     }}
                                 />
                             </div>
                             
-                            <p style={{ fontFamily: 'monospace', fontSize: '18px', color: 'var(--accent-primary)', marginBottom: '24px' }}>
+                            <p className="kiosk-id-display">
                                 ID: {successQR}
                             </p>
                         </>
@@ -632,27 +592,27 @@ export default function Register({ isKiosk = false }) {
 
                     {visitorStatus === 'checked-in' && (
                         <>
-                            <i className="fa-solid fa-circle-check text-success" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
-                            <h2 style={{ color: 'var(--success)', marginBottom: '8px' }}>Entrance Approved!</h2>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                            <i className="fa-solid fa-circle-check text-success kiosk-success-icon"></i>
+                            <h2 style={{ color: 'var(--success)' }}>Entrance Approved!</h2>
+                            <p className="kiosk-instruction-text">
                                 You are checked in. An arrival alert has been sent to your host via Telegram.
                             </p>
 
-                            <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                                <h3 style={{ marginBottom: '8px' }}>Your Exit Pass</h3>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
+                            <div className="kiosk-exit-card">
+                                <h3>Your Exit Pass</h3>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '16px' }}>
                                     When you finish your visit, present this <strong>Exit QR Code</strong> at the security desk:
                                 </p>
                                 
-                                <div style={{ background: 'white', padding: '16px', display: 'inline-block', borderRadius: '12px', marginBottom: '12px' }}>
+                                <div className="kiosk-qr-wrapper-sm">
                                     <QRCodeSVG 
                                         value={exitQrUrl} 
-                                        size={200} 
+                                        size={190} 
                                         level="H"
                                         imageSettings={{
                                             src: '/company-logo.png',
-                                            height: 44,
-                                            width: 44,
+                                            height: 42,
+                                            width: 42,
                                             excavate: true
                                         }}
                                     />
@@ -666,14 +626,14 @@ export default function Register({ isKiosk = false }) {
 
                     {visitorStatus === 'checked-out' && (
                         <>
-                            <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '64px', marginBottom: '16px' }}></i>
+                            <i className="fa-solid fa-person-walking-arrow-right text-primary kiosk-success-icon"></i>
                             <h2 style={{ color: 'var(--accent-primary)' }}>Checked Out!</h2>
                             <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Thank you for visiting.</p>
                         </>
                     )}
 
                     <div style={{ marginTop: '24px' }}>
-                        <button className="btn btn-outline" onClick={handleNextVisitor}>
+                        <button className="btn btn-outline kiosk-btn-done" onClick={handleNextVisitor}>
                             Done / Next Visitor
                         </button>
                     </div>
@@ -686,12 +646,12 @@ export default function Register({ isKiosk = false }) {
         <section className="view-section active">
             <div className="glass-panel form-container">
                 {isKiosk && (
-                    <div style={{ textAlign: 'center', marginBottom: '28px', paddingBottom: '18px', borderBottom: '1px solid var(--border-color)' }}>
-                        <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '48px', objectFit: 'contain', marginBottom: '10px' }} />
-                        <h2 style={{ fontSize: '24px', color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                    <div className="kiosk-form-banner">
+                        <img src="/company-logo.png" alt="Esstee Exports" className="kiosk-form-logo" />
+                        <h2>
                             Welcome to <span style={{ color: 'var(--accent-primary)' }}>Esstee Exports</span>
                         </h2>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+                        <p>
                             Self-service visitor check-in & digital pass registration
                         </p>
                     </div>
@@ -803,7 +763,7 @@ export default function Register({ isKiosk = false }) {
                                             {formData.phone.length}/10 Digits
                                         </span>
                                     </label>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                                    <div className="phone-input-row">
                                         <input 
                                             type="tel" 
                                             name="phone" 
@@ -814,23 +774,13 @@ export default function Register({ isKiosk = false }) {
                                             value={formData.phone} 
                                             onChange={(e) => { handleChange(e); setFindResult(null); }} 
                                             placeholder="Enter 10-digit mobile number"
-                                            style={{ flex: 1 }}
+                                            className="phone-number-input"
                                         />
                                         <button
                                             type="button"
                                             onClick={findByPhone}
                                             disabled={formData.phone.length !== 10 || finding}
-                                            className="btn btn-outline"
-                                            style={{
-                                                padding: '8px 16px',
-                                                whiteSpace: 'nowrap',
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                borderColor: formData.phone.length === 10 ? 'var(--primary)' : 'var(--border-color)',
-                                                color: formData.phone.length === 10 ? 'var(--primary)' : 'var(--text-muted)',
-                                                cursor: formData.phone.length === 10 ? 'pointer' : 'not-allowed',
-                                                opacity: formData.phone.length === 10 ? 1 : 0.5,
-                                            }}
+                                            className="btn btn-outline btn-phone-find"
                                             title="Search for existing visitor by this phone number"
                                         >
                                             {finding ? (
@@ -931,10 +881,9 @@ export default function Register({ isKiosk = false }) {
                                     )}
                                 </div>
                             </div>
-
                             {/* Row 4: Vehicle Details (Placed immediately after ID Proof) */}
-                            <div className="form-row">
-                                <div className="form-group" style={{ flex: '1' }}>
+                            <div className="form-row form-row-vehicle">
+                                <div className="form-group">
                                     <label>
                                         <i className="fa-solid fa-car" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
                                         Vehicle Coming? *
@@ -950,7 +899,7 @@ export default function Register({ isKiosk = false }) {
                                     </select>
                                 </div>
 
-                                <div className="form-group" style={{ flex: '1.5' }}>
+                                <div className="form-group">
                                     <label>
                                         <i className="fa-solid fa-barcode" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
                                         Vehicle Number {formData.hasVehicle === 'yes' ? '*' : ''}
@@ -959,7 +908,7 @@ export default function Register({ isKiosk = false }) {
                                         type="text" 
                                         name="vehicleNo" 
                                         value={formData.vehicleNo} 
-                                        onChange={handleChange}
+                                        onChange={handleChange} 
                                         disabled={formData.hasVehicle === 'no'}
                                         required={formData.hasVehicle === 'yes'}
                                         placeholder={formData.hasVehicle === 'yes' ? 'e.g. TN-01-AB-1234' : 'Disabled (No Vehicle)'}
@@ -973,8 +922,8 @@ export default function Register({ isKiosk = false }) {
                             </div>
 
                             {/* Row 5: Extra Accompanying Members */}
-                            <div className="form-row" style={{ alignItems: 'flex-start' }}>
-                                <div className="form-group" style={{ flex: formData.hasExtraMembers === 'yes' ? '1' : '1' }}>
+                            <div className={`form-row form-row-extra ${formData.hasExtraMembers === 'yes' ? 'has-extra' : ''}`}>
+                                <div className="form-group">
                                     <label>
                                         <i className="fa-solid fa-users" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
                                         Extra Members? *
@@ -992,7 +941,7 @@ export default function Register({ isKiosk = false }) {
 
                                 {formData.hasExtraMembers === 'yes' && (
                                     <>
-                                        <div className="form-group" style={{ flex: '1' }}>
+                                        <div className="form-group">
                                             <label>
                                                 <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
                                                 No. of Members *
@@ -1009,7 +958,7 @@ export default function Register({ isKiosk = false }) {
                                             />
                                         </div>
 
-                                        <div className="form-group" style={{ flex: '2' }}>
+                                        <div className="form-group">
                                             <label>
                                                 <i className="fa-solid fa-id-card-clip" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
                                                 Accompanying Visitor IDs *
@@ -1073,9 +1022,9 @@ export default function Register({ isKiosk = false }) {
                         </div>
                     </div>
                     
-                    <div className="form-actions mt-4" style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
-                        <button type="button" className="btn btn-outline" onClick={() => navigate('/')}>Cancel</button>
-                        <button type="submit" className="btn btn-primary" disabled={submitting}>
+                    <div className="form-actions mt-4">
+                        <button type="button" className="btn btn-outline btn-action-cancel" onClick={() => navigate('/')}>Cancel</button>
+                        <button type="submit" className="btn btn-primary btn-action-submit" disabled={submitting}>
                             {submitting ? (
                                 <>
                                     <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
