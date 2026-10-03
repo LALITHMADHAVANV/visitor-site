@@ -18,13 +18,24 @@ export const THERMAL_80MM_PAGE_STYLE = `
       margin: 0 !important;
       padding: 0 !important;
       width: 80mm !important;
+      height: auto !important;
+      overflow: visible !important;
       background: #ffffff !important;
+    }
+    body * {
+      visibility: hidden !important;
+    }
+    .badge-print-container,
+    .badge-print-container * {
+      visibility: visible !important;
     }
     .badge-print-container {
       display: block !important;
-      position: relative !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
       width: 80mm !important;
-      margin: 0 auto !important;
+      margin: 0 !important;
       padding: 0 !important;
       background: #ffffff !important;
     }
@@ -32,12 +43,14 @@ export const THERMAL_80MM_PAGE_STYLE = `
       width: 76mm !important;
       max-width: 76mm !important;
       margin: 0 auto !important;
-      padding: 3mm 2mm 5mm 2mm !important;
+      padding: 2mm 2mm 2mm 2mm !important;
       border: none !important;
       box-shadow: none !important;
       background: #ffffff !important;
-      page-break-after: always;
-      break-after: page;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
   }
 `;
@@ -267,11 +280,11 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <span className="info-val bold-val">{unitName}</span>
                     </div>
 
-                    {/* Signatures Section: Authorized Person Sign & Security Sign */}
+                    {/* Signatures Section: Authorized Sign & Security Sign */}
                     <div className="badge-signatures-container">
                         <div className="badge-sign-box">
                             <div className="badge-sign-space"></div>
-                            <span className="badge-sign-label">Authorized Person Sign</span>
+                            <span className="badge-sign-label">Authorized Sign</span>
                         </div>
                         <div className="badge-sign-box">
                             <div className="badge-sign-space"></div>
