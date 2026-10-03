@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import './Badge.css';
 
-export const THERMAL_58MM_PAGE_STYLE = `
+// Optimized for standard 80mm (3-inch) Thermal Bill / Receipt Printers (e.g. TVS RP 3230)
+export const THERMAL_80MM_PAGE_STYLE = `
   @page {
-    size: 58mm auto;
+    size: 80mm auto;
     margin: 0mm !important;
   }
   @media print {
@@ -16,22 +17,22 @@ export const THERMAL_58MM_PAGE_STYLE = `
     html, body {
       margin: 0 !important;
       padding: 0 !important;
-      width: 58mm !important;
+      width: 80mm !important;
       background: #ffffff !important;
     }
     .badge-print-container {
       display: block !important;
       position: relative !important;
-      width: 58mm !important;
+      width: 80mm !important;
       margin: 0 auto !important;
       padding: 0 !important;
       background: #ffffff !important;
     }
     .badge-thermal-slip {
-      width: 48mm !important;
-      max-width: 48mm !important;
+      width: 76mm !important;
+      max-width: 76mm !important;
       margin: 0 auto !important;
-      padding: 2mm 0.5mm 4mm 0.5mm !important;
+      padding: 3mm 2mm 5mm 2mm !important;
       border: none !important;
       box-shadow: none !important;
       background: #ffffff !important;
@@ -41,11 +42,89 @@ export const THERMAL_58MM_PAGE_STYLE = `
   }
 `;
 
-// Backward compatibility alias for all existing imports
-export const THERMAL_80MM_PAGE_STYLE = THERMAL_58MM_PAGE_STYLE;
+// Backward compatibility alias
+export const THERMAL_58MM_PAGE_STYLE = THERMAL_80MM_PAGE_STYLE;
+
+// Custom hook to enhance face photo for thermal receipt printing
+// Lifts dark indoor shadows via gamma correction so the face doesn't burn into a black blob
+function useEnhancedThermalPhoto(src) {
+    const [enhancedSrc, setEnhancedSrc] = useState(src);
+
+    useEffect(() => {
+        if (!src) {
+            setEnhancedSrc(null);
+            return;
+        }
+
+        let isMounted = true;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            if (!isMounted) return;
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const w = img.width || 320;
+                const h = img.height || 240;
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(img, 0, 0, w, h);
+
+                const imgData = ctx.getImageData(0, 0, w, h);
+                const d = imgData.data;
+
+                // 1. Calculate luminance per pixel
+                // 2. Lift shadows gently via gamma (gamma = 1.35) so faces don't black out on thermal heads
+                // 3. Gentle contrast boost to keep eyes, eyebrows, and contours crisp
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i];
+                    const g = d[i + 1];
+                    const b = d[i + 2];
+                    // Perceptual grayscale (ITU-R BT.709)
+                    const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+                    // Normalize to 0..1
+                    const norm = gray / 255;
+
+                    // Gamma curve to elevate deep shadows (prevents thermal head burn-in)
+                    const gammaLifted = Math.pow(norm, 1 / 1.35);
+
+                    // Gentle S-curve contrast (pivot around 0.5)
+                    let adjusted = (gammaLifted - 0.5) * 1.12 + 0.5;
+                    adjusted = Math.min(1, Math.max(0, adjusted));
+
+                    const finalVal = Math.round(adjusted * 255);
+                    d[i] = finalVal;
+                    d[i + 1] = finalVal;
+                    d[i + 2] = finalVal;
+                }
+
+                ctx.putImageData(imgData, 0, 0);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                setEnhancedSrc(dataUrl);
+            } catch (err) {
+                console.warn('Thermal photo enhancement fallback:', err);
+                setEnhancedSrc(src);
+            }
+        };
+        img.onerror = () => {
+            if (isMounted) setEnhancedSrc(src);
+        };
+        img.src = src;
+
+        return () => {
+            isMounted = false;
+        };
+    }, [src]);
+
+    return enhancedSrc || src;
+}
 
 const Badge = React.forwardRef(({ visitor }, ref) => {
     if (!visitor) return null;
+
+    const rawPhoto = visitor.photoData || visitor.photo || visitor.photoUrl;
+    const enhancedPhoto = useEnhancedThermalPhoto(rawPhoto);
 
     const getCleanOrigin = () => {
         if (typeof window === 'undefined') return '';
@@ -75,8 +154,6 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
     const hours12 = String(hours % 12 || 12).padStart(2, '0');
     const formattedInTime = `${hours12}:${minutes} ${ampm}`;
 
-
-
     // Total persons count
     const extraCount = visitor.hasExtraMembers === 'yes' ? (parseInt(visitor.extraMembersCount, 10) || 0) : 0;
     const totalPersons = 1 + extraCount;
@@ -96,59 +173,64 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
     return (
         <div className="badge-print-container" ref={ref}>
             <div className="badge-thermal-slip">
-                {/* 1. Header */}
+                {/* 1. Company Name on Top */}
                 <div className="badge-company-header">
                     <h1 className="badge-company-title">ESS TEE EXPORTS PVT LTD</h1>
                     <h2 className="badge-pass-title">VISITOR PASS</h2>
                 </div>
 
-                {/* 2. Visitor Photo (Centered for 58mm TVS RP 3230) */}
-                <div className="badge-photo-wrapper">
-                    {visitor.photoData ? (
-                        <img 
-                            src={visitor.photoData} 
-                            alt="Visitor" 
-                            className="badge-visitor-photo" 
-                        />
-                    ) : (
-                        <div className="badge-photo-placeholder">
-                            <i className="fa-solid fa-user"></i>
-                            <span>NO PHOTO</span>
+                {/* 2. Side-by-Side: Left Photo, Right QR Code with Date & In Time Below QR */}
+                <div className="badge-side-by-side">
+                    {/* Left: Visitor Photo (Enhanced for thermal clarity) */}
+                    <div className="badge-left-photo-col">
+                        <div className="badge-photo-wrapper">
+                            {enhancedPhoto ? (
+                                <img 
+                                    src={enhancedPhoto} 
+                                    alt="Visitor" 
+                                    className="badge-visitor-photo" 
+                                />
+                            ) : (
+                                <div className="badge-photo-placeholder">
+                                    <i className="fa-solid fa-user"></i>
+                                    <span>NO PHOTO</span>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
-
-                {/* 3. QR Code (Centered for 58mm) */}
-                <div className="badge-qr-container">
-                    <QRCodeSVG 
-                        value={exitQrUrl} 
-                        size={104} 
-                        level="M" 
-                        fgColor="#000000"
-                        bgColor="#ffffff"
-                    />
-                </div>
-
-                {/* 4. Details Under QR: Date, In, Vehicle */}
-                <div className="badge-pass-meta">
-                    <div className="meta-line">
-                        <span className="meta-label">Date :</span>
-                        <span className="meta-val">{formattedDate}</span>
                     </div>
-                    <div className="meta-line">
-                        <span className="meta-label">In :</span>
-                        <span className="meta-val">{formattedInTime}</span>
-                    </div>
-                    <div className="meta-line">
-                        <span className="meta-label">Vehicle :</span>
-                        <span className="meta-val">{vehicleNo.toUpperCase()}</span>
+
+                    {/* Right: QR Code + Date & In Time directly below QR */}
+                    <div className="badge-right-qr-col">
+                        <div className="badge-qr-container">
+                            <QRCodeSVG 
+                                value={exitQrUrl} 
+                                size={110} 
+                                level="M" 
+                                fgColor="#000000"
+                                bgColor="#ffffff"
+                            />
+                        </div>
+                        <div className="badge-pass-meta">
+                            <div className="meta-line">
+                                <span className="meta-label">Date :</span>
+                                <span className="meta-val">{formattedDate}</span>
+                            </div>
+                            <div className="meta-line">
+                                <span className="meta-label">In :</span>
+                                <span className="meta-val">{formattedInTime}</span>
+                            </div>
+                            <div className="meta-line">
+                                <span className="meta-label">Vehicle :</span>
+                                <span className="meta-val">{vehicleNo.toUpperCase()}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Horizontal Divider Line */}
                 <div className="badge-divider-line"></div>
 
-                {/* 3. Visitor Details Section */}
+                {/* 3. Down: Other Details */}
                 <div className="badge-visitor-info">
                     {/* Visitor Name (Large Bold Uppercase) */}
                     <div className="badge-visitor-name">
