@@ -266,6 +266,18 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <span className="info-label bold-label">Unit :</span>
                         <span className="info-val bold-val">{unitName}</span>
                     </div>
+
+                    {/* Signatures Section: Authorized Person Sign & Security Sign */}
+                    <div className="badge-signatures-container">
+                        <div className="badge-sign-box">
+                            <div className="badge-sign-space"></div>
+                            <span className="badge-sign-label">Authorized Person Sign</span>
+                        </div>
+                        <div className="badge-sign-box">
+                            <div className="badge-sign-space"></div>
+                            <span className="badge-sign-label">Security Sign</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
