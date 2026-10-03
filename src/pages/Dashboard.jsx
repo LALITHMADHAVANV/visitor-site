@@ -55,12 +55,19 @@ export default function Dashboard() {
         }
 
         // Real-time updates from hardware barcode/QR scanner or camera scanner
-        const handleScanProcessed = (event) => {
+        const handleScanProcessed = async (event) => {
             fetchDashboardData();
             if (event.detail && event.detail.visitor) {
+                let v = event.detail.visitor;
+                if ((!v.photoData && !v.photo && !v.photoUrl) && (v.id || v.visitorNo)) {
+                    try {
+                        const fresh = v.id ? await db.visitors.get(v.id) : await db.visitors.where('visitorNo').equals(v.visitorNo).first();
+                        if (fresh) v = { ...fresh, ...v };
+                    } catch (_e) {}
+                }
                 setScanPopup({
-                    visitor: event.detail.visitor,
-                    action: event.detail.action || (event.detail.visitor.status === 'checked-out' ? 'checkout' : 'checkin'),
+                    visitor: v,
+                    action: event.detail.action || (v.status === 'checked-out' ? 'checkout' : 'checkin'),
                     timestamp: event.detail.timestamp || new Date().toISOString()
                 });
             }
@@ -656,9 +663,9 @@ export default function Dashboard() {
                             {/* Photo & Identity Section */}
                             <div className="visitor-modal-identity">
                                 <div className="visitor-modal-photo-wrapper">
-                                    {previewVisitor.photoData ? (
+                                    {(previewVisitor.photoData || previewVisitor.photo_data || previewVisitor.photo || previewVisitor.photoUrl) ? (
                                         <img 
-                                            src={previewVisitor.photoData} 
+                                            src={previewVisitor.photoData || previewVisitor.photo_data || previewVisitor.photo || previewVisitor.photoUrl} 
                                             alt={previewVisitor.name} 
                                             className="visitor-modal-photo"
                                         />
@@ -874,9 +881,9 @@ export default function Dashboard() {
                         <div className="scan-popup-body">
                             <div className="scan-popup-identity">
                                 <div className="scan-popup-photo-box">
-                                    {scanPopup.visitor.photoUrl || scanPopup.visitor.photo ? (
+                                    {(scanPopup.visitor.photoData || scanPopup.visitor.photo_data || scanPopup.visitor.photo || scanPopup.visitor.photoUrl) ? (
                                         <img 
-                                            src={scanPopup.visitor.photoUrl || scanPopup.visitor.photo} 
+                                            src={scanPopup.visitor.photoData || scanPopup.visitor.photo_data || scanPopup.visitor.photo || scanPopup.visitor.photoUrl} 
                                             alt={scanPopup.visitor.name} 
                                             className="scan-popup-photo" 
                                         />
