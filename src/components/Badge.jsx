@@ -24,20 +24,17 @@ export const THERMAL_80MM_PAGE_STYLE = `
       position: relative !important;
       width: 100% !important;
       margin: 0 !important;
-      padding: 0 0 5mm 0 !important;
+      padding: 0 !important;
       background: #ffffff !important;
     }
-    .badge-card-80mm {
-      width: 100% !important;
-      min-width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      border: 2px solid #000000 !important;
-      border-radius: 0px !important;
+    .badge-thermal-slip {
+      width: 76mm !important;
+      max-width: 76mm !important;
+      margin: 0 auto !important;
+      padding: 3mm 2mm 5mm 2mm !important;
+      border: none !important;
       box-shadow: none !important;
-      box-sizing: border-box !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
+      background: #ffffff !important;
       page-break-after: always;
       break-after: page;
     }
@@ -59,56 +56,29 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
     const cleanOrigin = getCleanOrigin();
     const exitQrUrl = `${cleanOrigin}/mobile-action?id=${visitor.id}&action=checkout`;
 
-    // Format Time & Date
+    // Date & Time formatting
     const rawTime = visitor.checkInTime || visitor.created_at || new Date();
     const dateObj = new Date(rawTime);
     const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
 
-    const formattedTime = validDate.toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
-    });
+    const day = String(validDate.getDate()).padStart(2, '0');
+    const month = String(validDate.getMonth() + 1).padStart(2, '0');
+    const year = validDate.getFullYear();
+    const formattedDate = `${day}-${month}-${year}`;
 
-    const formattedDate = validDate.toLocaleDateString([], { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric' 
-    });
+    const hours = validDate.getHours();
+    const minutes = String(validDate.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = String(hours % 12 || 12).padStart(2, '0');
+    const formattedInTime = `${hours12}:${minutes} ${ampm}`;
 
-    const formattedDateTime = `${formattedTime}, ${formattedDate}`;
 
-    // Extract Vehicle No
-    const rawVehicleNo = visitor.vehicleNo || (() => {
-        if (visitor.purpose) {
-            const match = visitor.purpose.match(/\[Vehicle:\s*(.*?)\]/i);
-            if (match && match[1]) return match[1].trim();
-        }
-        return visitor.hasVehicle === 'yes' ? 'Yes' : (visitor.vehicleNo || 'No');
-    })();
-    const displayVehicleNo = rawVehicleNo || 'No';
 
-    // Extract ID Details
-    const rawIdType = visitor.idType || (() => {
-        if (visitor.purpose) {
-            const match = visitor.purpose.match(/\[ID:\s*(.*?)(?:\s*-\s*(.*?))?\]/i);
-            if (match && match[1]) return match[1].trim();
-        }
-        return null;
-    })();
-    const rawIdNumber = visitor.idNumber || (() => {
-        if (visitor.purpose) {
-            const match = visitor.purpose.match(/\[ID:\s*.*?\s*-\s*(.*?)\]/i);
-            if (match && match[1]) return match[1].trim();
-        }
-        return null;
-    })();
+    // Total persons count
+    const extraCount = visitor.hasExtraMembers === 'yes' ? (parseInt(visitor.extraMembersCount, 10) || 0) : 0;
+    const totalPersons = 1 + extraCount;
 
-    // Extra Members
-    const extraCount = visitor.hasExtraMembers === 'yes' ? (parseInt(visitor.extraMembersCount) || 1) : 0;
-    const extraIds = visitor.extraMembersIds || '';
-
-    // Clean purpose from any embedded tags
+    // Clean purpose from any tags
     const cleanPurpose = visitor.purpose 
         ? visitor.purpose
             .replace(/\[ID:.*?\]/g, '')
@@ -117,123 +87,102 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
             .trim() || visitor.purpose
         : '-';
 
-    const logoSrc = (typeof window !== 'undefined' && localStorage.getItem('companyLogo')) || '/company-logo.png';
-    const passNo = visitor.visitorNo || visitor.id || '';
+    const vehicleNo = visitor.vehicleNo && visitor.vehicleNo !== 'No' ? visitor.vehicleNo : '-';
+    const unitName = visitor.unit || 'HEAD OFFICE';
 
     return (
         <div className="badge-print-container" ref={ref}>
-            <div className="badge-card-80mm">
-                {/* Header Title Band */}
-                <div className="badge-header-band">VISITOR PASS</div>
+            <div className="badge-thermal-slip">
+                {/* 1. Header */}
+                <div className="badge-company-header">
+                    <h1 className="badge-company-title">ESS TEE EXPORTS PVT LTD</h1>
+                    <h2 className="badge-pass-title">VISITOR PASS</h2>
+                </div>
 
-                <div className="badge-main-body">
-                    {/* Left Section: Company Logo + Exit QR */}
-                    <div className="badge-left-col">
-                        <div className="badge-company-logo-area">
-                            <img 
-                                src={logoSrc} 
-                                alt="Esstee Exports" 
-                                className="badge-logo-img"
-                                onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    if (e.currentTarget.nextSibling) {
-                                        e.currentTarget.nextSibling.style.display = 'flex';
-                                    }
-                                }}
-                            />
-                            <div className="badge-logo-fallback" style={{ display: 'none' }}>
-                                <i className="fa-solid fa-building-shield"></i>
-                                <span>Esstee Exports</span>
-                            </div>
-                        </div>
-
-                        <div className="badge-exit-qr">
-                            <div className="badge-qr-box">
-                                <QRCodeSVG 
-                                    value={exitQrUrl} 
-                                    size={96} 
-                                    level="H" 
-                                    fgColor="#000000"
-                                    bgColor="#ffffff"
-                                    imageSettings={{
-                                        src: logoSrc,
-                                        height: 26,
-                                        width: 26,
-                                        excavate: true
-                                    }}
+                {/* 2. Top Grid: Photo on Left, Large QR Code & Details on Right */}
+                <div className="badge-top-grid">
+                    <div className="badge-top-left">
+                        <div className="badge-photo-wrapper">
+                            {visitor.photoData ? (
+                                <img 
+                                    src={visitor.photoData} 
+                                    alt="Visitor" 
+                                    className="badge-visitor-photo" 
                                 />
-                            </div>
-                            <div className="badge-qr-meta">
-                                <span className="badge-qr-label">EXIT QR</span>
-                                {passNo && <span className="badge-qr-id">#{passNo}</span>}
-                            </div>
+                            ) : (
+                                <div className="badge-photo-placeholder">
+                                    <i className="fa-solid fa-user"></i>
+                                    <span>NO PHOTO</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Right Section: Name, Company, Visiting Person, Vehicle No, ID, Purpose, Time & Date */}
-                    <div className="badge-right-col">
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Name:</span>
-                            <span className="badge-field-val badge-name-val" title={visitor.name}>
-                                {visitor.name || '-'}
-                            </span>
+                    <div className="badge-top-right">
+                        <div className="badge-qr-container">
+                            <QRCodeSVG 
+                                value={exitQrUrl} 
+                                size={108} 
+                                level="M" 
+                                fgColor="#000000"
+                                bgColor="#ffffff"
+                            />
                         </div>
-
-                        {visitor.phone && (
-                            <div className="badge-field-row">
-                                <span className="badge-field-label">Phone:</span>
-                                <span className="badge-field-val badge-mono-val">{visitor.phone}</span>
+                        <div className="badge-pass-meta">
+                            <div className="meta-line">
+                                <span className="meta-label">Date :</span>
+                                <span className="meta-val">{formattedDate}</span>
                             </div>
-                        )}
-
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Company:</span>
-                            <span className="badge-field-val" title={visitor.company}>
-                                {visitor.company || '-'}
-                            </span>
-                        </div>
-
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Visiting Person:</span>
-                            <span className="badge-field-val badge-bold-val" title={visitor.hostName || visitor.hostname}>
-                                {visitor.hostName || visitor.hostname || '-'}
-                            </span>
-                        </div>
-
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Vehicle No:</span>
-                            <span className="badge-field-val badge-vehicle-val" title={displayVehicleNo}>
-                                {displayVehicleNo}
-                            </span>
-                        </div>
-
-                        {rawIdType && (
-                            <div className="badge-field-row">
-                                <span className="badge-field-label">{rawIdType}:</span>
-                                <span className="badge-field-val badge-mono-val">{rawIdNumber || 'Verified'}</span>
+                            <div className="meta-line">
+                                <span className="meta-label">In :</span>
+                                <span className="meta-val">{formattedInTime}</span>
                             </div>
-                        )}
-
-                        {extraCount > 0 && (
-                            <div className="badge-field-row">
-                                <span className="badge-field-label">Extra:</span>
-                                <span className="badge-field-val">+{extraCount} ({extraIds || 'Verified'})</span>
+                            <div className="meta-line">
+                                <span className="meta-label">Vehicle :</span>
+                                <span className="meta-val">{vehicleNo.toUpperCase()}</span>
                             </div>
-                        )}
-
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Purpose:</span>
-                            <span className="badge-field-val" title={cleanPurpose}>
-                                {cleanPurpose || '-'}
-                            </span>
                         </div>
+                    </div>
+                </div>
 
-                        <div className="badge-field-row">
-                            <span className="badge-field-label">Time & Date:</span>
-                            <span className="badge-field-val badge-date-val">
-                                {formattedDateTime}
-                            </span>
-                        </div>
+                {/* Horizontal Divider Line */}
+                <div className="badge-divider-line"></div>
+
+                {/* 3. Visitor Details Section */}
+                <div className="badge-visitor-info">
+                    {/* Visitor Name (Large Bold Uppercase) */}
+                    <div className="badge-visitor-name">
+                        {(visitor.name || '').toUpperCase()}
+                    </div>
+
+                    {/* Company */}
+                    <div className="badge-info-row">
+                        <span className="info-label">Company :</span>
+                        <span className="info-val">{(visitor.company || '-').toUpperCase()}</span>
+                    </div>
+
+                    {/* Persons Count (Prominent Bold) */}
+                    <div className="badge-persons-row">
+                        <span className="persons-label">PERSONS :</span>
+                        <span className="persons-val">{totalPersons}</span>
+                    </div>
+
+                    {/* Host / To Meet */}
+                    <div className="badge-info-row">
+                        <span className="info-label">To Meet :</span>
+                        <span className="info-val">{(visitor.hostName || visitor.hostname || '-').toUpperCase()}</span>
+                    </div>
+
+                    {/* Purpose */}
+                    <div className="badge-info-row">
+                        <span className="info-label">Purpose :</span>
+                        <span className="info-val">{cleanPurpose.toUpperCase()}</span>
+                    </div>
+
+                    {/* Unit */}
+                    <div className="badge-info-row badge-unit-row">
+                        <span className="info-label bold-label">Unit :</span>
+                        <span className="info-val bold-val">{unitName}</span>
                     </div>
                 </div>
             </div>

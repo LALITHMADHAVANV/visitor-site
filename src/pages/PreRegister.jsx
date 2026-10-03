@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import { useNavigate } from 'react-router-dom';
 import { OFFICE_HOSTS } from '../hosts';
@@ -12,6 +12,8 @@ export default function PreRegister() {
         purpose: ''
     });
     const [preregisteredList, setPreregisteredList] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     
     const navigate = useNavigate();
 
@@ -30,7 +32,16 @@ export default function PreRegister() {
         return () => clearInterval(interval);
     }, []);
 
-    const preregistered = preregisteredList.filter(p => p.status === 'expected');
+    const preregistered = useMemo(() => {
+        const expected = preregisteredList.filter(p => p.status === 'expected');
+        if (!searchTerm.trim()) return expected;
+        const term = searchTerm.toLowerCase().trim();
+        return expected.filter(p => 
+            p.name?.toLowerCase().includes(term) ||
+            p.company?.toLowerCase().includes(term) ||
+            p.hostName?.toLowerCase().includes(term)
+        );
+    }, [preregisteredList, searchTerm]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -39,11 +50,13 @@ export default function PreRegister() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setSubmitting(true);
         
         try {
             await db.preregistered.add({
                 ...formData,
-                status: 'expected'
+                status: 'expected',
+                created_at: new Date().toISOString()
             });
             
             setFormData({ name: '', company: '', hostName: '', expectedDate: '', purpose: '' });
@@ -52,17 +65,16 @@ export default function PreRegister() {
         } catch (error) {
             console.error("Error pre-registering:", error);
             alert("Failed to pre-register visitor.");
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleCheckIn = (p) => {
-        // You would typically pass data via state or a global store, 
-        // but for simplicity we'll just navigate to register and let the user fill the form
-        // A more advanced solution would pre-fill the form fields.
         navigate('/register', { state: { preregData: p } });
     };
 
-    const formatTime = (isoString) => {
+    const formatExpectedDate = (isoString) => {
         if (!isoString) return '-';
         return new Date(isoString).toLocaleDateString([], {
             month: 'short', day: 'numeric', year: 'numeric'
@@ -70,42 +82,120 @@ export default function PreRegister() {
     };
 
     return (
-        <section className="view-section active">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px' }}>
+        <section className="preregister-page">
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: '24px', alignItems: 'start' }}>
                 {/* List Side */}
-                <div className="glass-panel" style={{ padding: '0' }}>
-                    <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
-                        <h2>Expected Visitors</h2>
+                <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'hidden' }}>
+                    <div style={{ 
+                        padding: '16px 20px', 
+                        borderBottom: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                    }}>
+                        <div>
+                            <h2 style={{ fontSize: '16px', margin: 0 }}>Expected Visitors Queue</h2>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {preregistered.length} {preregistered.length === 1 ? 'guest' : 'guests'} awaiting check-in
+                            </span>
+                        </div>
+                        
+                        {/* Search input */}
+                        <div style={{ position: 'relative', width: '220px' }}>
+                            <i className="fa-solid fa-search" style={{ 
+                                position: 'absolute', 
+                                left: '10px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)', 
+                                color: 'var(--text-muted)', 
+                                fontSize: '12px' 
+                            }}></i>
+                            <input 
+                                type="text"
+                                placeholder="Search expected..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '6px 28px 6px 28px',
+                                    fontSize: '12.5px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    background: '#f8fafc',
+                                    outline: 'none'
+                                }}
+                            />
+                            {searchTerm && (
+                                <button 
+                                    onClick={() => setSearchTerm('')}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '6px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#94a3b8',
+                                        cursor: 'pointer',
+                                        fontSize: '11px'
+                                    }}
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            )}
+                        </div>
                     </div>
+
                     <div className="table-responsive">
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '60px', textAlign: 'center' }}>S.No</th>
-                                    <th>Name</th>
-                                    <th>Date</th>
-                                    <th>Host</th>
-                                    <th>Action</th>
+                                    <th style={{ width: '50px', textAlign: 'center' }}>#</th>
+                                    <th>Visitor Details</th>
+                                    <th>Expected Date</th>
+                                    <th>Person to Visit</th>
+                                    <th style={{ textAlign: 'right' }}>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {preregistered.length === 0 ? (
                                     <tr>
                                         <td colSpan="5">
-                                            <div className="empty-state">No expected visitors.</div>
+                                            <div className="empty-state">
+                                                <i className="fa-regular fa-calendar-check empty-state-icon"></i>
+                                                <p>{searchTerm ? `No expected visitors matching "${searchTerm}"` : 'No upcoming pre-registered visitors found.'}</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
                                     preregistered.map((p, index) => (
                                         <tr key={p.id}>
-                                            <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                                            <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '12px' }}>
                                                 {index + 1}
                                             </td>
-                                            <td><strong>{p.name}</strong><br/><span style={{fontSize:'12px', color:'var(--text-secondary)'}}>{p.company || '-'}</span></td>
-                                            <td>{formatTime(p.expectedDate)}</td>
-                                            <td>{p.hostName}</td>
                                             <td>
-                                                <button className="btn btn-outline btn-sm" onClick={() => handleCheckIn(p)}>Check In</button>
+                                                <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{p.company || 'Individual Visitor'}</div>
+                                            </td>
+                                            <td>
+                                                <span style={{ fontSize: '12.5px', fontWeight: '500' }}>
+                                                    {formatExpectedDate(p.expectedDate)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div style={{ fontWeight: '500' }}>{p.hostName}</div>
+                                                <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{p.purpose || 'Official Visit'}</div>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <button 
+                                                    className="btn btn-primary btn-sm" 
+                                                    onClick={() => handleCheckIn(p)}
+                                                    title="Proceed to full check-in and pass creation"
+                                                >
+                                                    <i className="fa-solid fa-user-check"></i> Check In
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
@@ -116,19 +206,42 @@ export default function PreRegister() {
                 </div>
                 
                 {/* Form Side */}
-                <div className="glass-panel" style={{ padding: '24px' }}>
-                    <h2>Add Expected Visitor</h2>
-                    <form onSubmit={handleSubmit} style={{ marginTop: '16px' }}>
+                <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '12px', padding: '24px' }}>
+                    <div style={{ marginBottom: '18px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <h2 style={{ fontSize: '16px', margin: '0 0 4px 0' }}>Pre-Register a Guest</h2>
+                        <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: 0 }}>
+                            Add upcoming visitor details in advance
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Full Name *</label>
-                            <input type="text" name="name" required value={formData.name} onChange={handleChange} className="form-control" />
+                            <label>Visitor Full Name *</label>
+                            <input 
+                                type="text" 
+                                name="name" 
+                                required 
+                                value={formData.name} 
+                                onChange={handleChange} 
+                                className="form-control" 
+                                placeholder="e.g. Jane Doe"
+                            />
                         </div>
+
                         <div className="form-group">
-                            <label>Company</label>
-                            <input type="text" name="company" value={formData.company} onChange={handleChange} className="form-control" />
+                            <label>Company / Organization</label>
+                            <input 
+                                type="text" 
+                                name="company" 
+                                value={formData.company} 
+                                onChange={handleChange} 
+                                className="form-control" 
+                                placeholder="e.g. ABC Textiles Ltd"
+                            />
                         </div>
+
                         <div className="form-group">
-                            <label>Host *</label>
+                            <label>Person to Visit (Host) *</label>
                             <select 
                                 name="hostSelect" 
                                 required 
@@ -143,13 +256,13 @@ export default function PreRegister() {
                                 }}
                                 className="form-control"
                             >
-                                <option value="">-- Select Person to Visit --</option>
+                                <option value="">-- Select Host --</option>
                                 {OFFICE_HOSTS.map(h => (
                                     <option key={h.name} value={h.name}>
                                         {h.name} {h.department ? `(${h.department})` : ''}
                                     </option>
                                 ))}
-                                <option value="other">Other (Type Custom Name)</option>
+                                <option value="other">Other (Type Name)</option>
                             </select>
                             {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
                                 <input 
@@ -158,22 +271,55 @@ export default function PreRegister() {
                                     required 
                                     value={formData.hostName} 
                                     onChange={handleChange} 
-                                    placeholder="Type host name" 
+                                    placeholder="Enter host or department name" 
                                     className="form-control" 
                                     style={{ marginTop: '8px' }} 
                                 />
                             )}
                         </div>
+
                         <div className="form-group">
-                            <label>Expected Date *</label>
-                            <input type="date" name="expectedDate" required value={formData.expectedDate} onChange={handleChange} className="form-control" style={{ colorScheme: 'dark' }} />
+                            <label>Expected Visit Date *</label>
+                            <input 
+                                type="date" 
+                                name="expectedDate" 
+                                required 
+                                value={formData.expectedDate} 
+                                onChange={handleChange} 
+                                className="form-control" 
+                            />
                         </div>
+
                         <div className="form-group">
-                            <label>Purpose</label>
-                            <input type="text" name="purpose" value={formData.purpose} onChange={handleChange} className="form-control" />
+                            <label>Purpose of Visit</label>
+                            <input 
+                                type="text" 
+                                name="purpose" 
+                                value={formData.purpose} 
+                                onChange={handleChange} 
+                                className="form-control" 
+                                placeholder="e.g. Audit, Client Meeting"
+                            />
                         </div>
-                        <div className="form-actions mt-3">
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>Pre-Register</button>
+
+                        <div style={{ marginTop: '20px' }}>
+                            <button 
+                                type="submit" 
+                                className="btn btn-primary w-100" 
+                                disabled={submitting}
+                            >
+                                {submitting ? (
+                                    <>
+                                        <i className="fa-solid fa-spinner fa-spin"></i>
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fa-solid fa-calendar-plus"></i>
+                                        <span>Add Pre-Registration</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </form>
                 </div>

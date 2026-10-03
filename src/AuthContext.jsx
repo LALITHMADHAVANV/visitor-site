@@ -2,27 +2,24 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+// Default user — no login required
+const DEFAULT_USER = {
+    username: 'Security',
+    role: 'admin',
+    id: 'default-user'
+};
 
-    useEffect(() => {
-        // Load user from localStorage on init
-        const storedUser = localStorage.getItem('vms_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
-    }, []);
+export const AuthProvider = ({ children }) => {
+    const [user, setUser] = useState(DEFAULT_USER);
+    const [loading, setLoading] = useState(false);
 
     const login = (userData) => {
-        setUser(userData);
-        localStorage.setItem('vms_user', JSON.stringify(userData));
+        setUser(userData || DEFAULT_USER);
     };
 
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem('vms_user');
+        // Just reset to default user — no actual sign-out needed
+        setUser(DEFAULT_USER);
     };
 
     return (

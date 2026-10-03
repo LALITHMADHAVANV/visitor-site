@@ -88,6 +88,8 @@ export default function Register({ isKiosk = false }) {
     const [successQR, setSuccessQR] = useState(null);
     const [registeredVisitor, setRegisteredVisitor] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [finding, setFinding] = useState(false);
+    const [findResult, setFindResult] = useState(null); // 'found', 'not-found', null
 
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
@@ -121,6 +123,64 @@ export default function Register({ isKiosk = false }) {
 
     const retake = () => {
         setPhotoData(null);
+    };
+
+    // Find existing visitor by phone number
+    const findByPhone = async () => {
+        const phone = formData.phone.trim();
+        if (phone.length !== 10) {
+            alert('Please enter a valid 10-digit mobile number first.');
+            return;
+        }
+        setFinding(true);
+        setFindResult(null);
+        try {
+            // Search in all visitors (Supabase) for this phone number, get the latest one
+            const allVisitors = await db.visitors.toArray();
+            const matches = allVisitors
+                .filter(v => v.phone === phone)
+                .sort((a, b) => {
+                    const timeA = new Date(a.checkInTime || a.created_at || 0).getTime();
+                    const timeB = new Date(b.checkInTime || b.created_at || 0).getTime();
+                    return timeB - timeA; // latest first
+                });
+
+            if (matches.length > 0) {
+                const prev = matches[0];
+                // Auto-fill form fields from previous visit
+                setFormData(f => ({
+                    ...f,
+                    name: prev.name || f.name,
+                    company: prev.company || f.company,
+                    idType: prev.idType || f.idType,
+                    idNumber: prev.idNumber || f.idNumber,
+                    hostName: prev.hostName || prev.hostname || f.hostName,
+                    purpose: prev.purpose
+                        ? prev.purpose
+                            .replace(/\[ID:.*?\]/g, '')
+                            .replace(/\[Vehicle:.*?\]/g, '')
+                            .replace(/\[Extra:.*?\]/g, '')
+                            .trim() || f.purpose
+                        : f.purpose,
+                    hasVehicle: prev.hasVehicle === 'yes' ? 'yes' : 'no',
+                    vehicleNo: prev.vehicleNo && prev.vehicleNo !== 'No' ? prev.vehicleNo : (f.vehicleNo || 'No'),
+                }));
+                // Set photo if available
+                if (prev.photoData && !photoData) {
+                    setPhotoData(prev.photoData);
+                }
+                setFindResult('found');
+            } else {
+                setFindResult('not-found');
+            }
+        } catch (err) {
+            console.error('Find visitor error:', err);
+            setFindResult('not-found');
+        } finally {
+            setFinding(false);
+            // Clear the result message after 4 seconds
+            setTimeout(() => setFindResult(null), 4000);
+        }
     };
 
     const handleChange = (e) => {
@@ -647,7 +707,8 @@ export default function Register({ isKiosk = false }) {
                                             audio={false}
                                             ref={webcamRef}
                                             screenshotFormat="image/jpeg"
-                                            videoConstraints={{ width: 400, height: 400, facingMode: "user" }}
+                                            screenshotQuality={0.92}
+                                            videoConstraints={{ width: 640, height: 640, facingMode: "user" }}
                                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         />
                                         <div className="camera-overlay">
@@ -742,20 +803,56 @@ export default function Register({ isKiosk = false }) {
                                             {formData.phone.length}/10 Digits
                                         </span>
                                     </label>
-                                    <input 
-                                        type="tel" 
-                                        name="phone" 
-                                        required 
-                                        inputMode="numeric"
-                                        maxLength={10}
-                                        pattern="[0-9]{10}"
-                                        value={formData.phone} 
-                                        onChange={handleChange} 
-                                        placeholder="Enter 10-digit mobile number" 
-                                    />
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                                        <input 
+                                            type="tel" 
+                                            name="phone" 
+                                            required 
+                                            inputMode="numeric"
+                                            maxLength={10}
+                                            pattern="[0-9]{10}"
+                                            value={formData.phone} 
+                                            onChange={(e) => { handleChange(e); setFindResult(null); }} 
+                                            placeholder="Enter 10-digit mobile number"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={findByPhone}
+                                            disabled={formData.phone.length !== 10 || finding}
+                                            className="btn btn-outline"
+                                            style={{
+                                                padding: '8px 16px',
+                                                whiteSpace: 'nowrap',
+                                                fontSize: '13px',
+                                                fontWeight: '600',
+                                                borderColor: formData.phone.length === 10 ? 'var(--primary)' : 'var(--border-color)',
+                                                color: formData.phone.length === 10 ? 'var(--primary)' : 'var(--text-muted)',
+                                                cursor: formData.phone.length === 10 ? 'pointer' : 'not-allowed',
+                                                opacity: formData.phone.length === 10 ? 1 : 0.5,
+                                            }}
+                                            title="Search for existing visitor by this phone number"
+                                        >
+                                            {finding ? (
+                                                <><i className="fa-solid fa-spinner fa-spin"></i> Finding...</>
+                                            ) : (
+                                                <><i className="fa-solid fa-magnifying-glass"></i> Find</>
+                                            )}
+                                        </button>
+                                    </div>
                                     {formData.phone.length > 0 && formData.phone.length < 10 && (
                                         <span style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'block' }}>
                                             Must be exactly 10 digits ({10 - formData.phone.length} more needed)
+                                        </span>
+                                    )}
+                                    {findResult === 'found' && (
+                                        <span style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600' }}>
+                                            <i className="fa-solid fa-circle-check"></i> Visitor found! Details auto-filled from previous visit.
+                                        </span>
+                                    )}
+                                    {findResult === 'not-found' && (
+                                        <span style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
+                                            <i className="fa-solid fa-circle-info"></i> No previous visit found. Please fill in the details.
                                         </span>
                                     )}
                                 </div>

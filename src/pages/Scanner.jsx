@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { db } from '../db';
 import './Scanner.css';
 
 export default function QRScanner() {
-    const [scanResult, setScanResult] = useState(null);
+    const navigate = useNavigate();
     const [scanStatus, setScanStatus] = useState('idle'); // idle, success-in, success-out, error
-    const [message, setMessage] = useState('Point camera at Visitor QR Code');
+    const [message, setMessage] = useState('Position visitor QR code within the frame');
+    const [visitorDetails, setVisitorDetails] = useState(null);
     const [isScanning, setIsScanning] = useState(true);
 
     const handleScan = useCallback(async (result) => {
@@ -28,7 +30,7 @@ export default function QRScanner() {
                     const action = parsedUrl.searchParams.get('action');
                     if (extractedId) visitorId = extractedId;
                     if (action === 'checkout') isExplicitCheckout = true;
-                } catch (e) {
+                } catch (_e) {
                     const idMatch = visitorId.match(/[?&]id=([^&]+)/);
                     if (idMatch) visitorId = idMatch[1];
                     if (visitorId.includes('action=checkout')) isExplicitCheckout = true;
@@ -39,6 +41,7 @@ export default function QRScanner() {
             const visitor = await db.visitors.get(visitorId);
             
             if (visitor) {
+                setVisitorDetails(visitor);
                 if (isExplicitCheckout || visitor.status === 'checked-in') {
                     // Check Out
                     await db.visitors.update(visitorId, {
@@ -60,35 +63,36 @@ export default function QRScanner() {
                     setMessage(`Checked IN: ${visitor.name}`);
                     
                 } else if (visitor.status === 'checked-out') {
-                    // Error: Already left
+                    // Notice: Already checked out
                     setScanStatus('error');
-                    setMessage(`Notice: Pass expired / already left (${visitor.name})`);
+                    setMessage(`Notice: Pass expired / already checked out (${visitor.name})`);
                 }
             } else {
                 setScanStatus('error');
-                setMessage(`Error: Unknown Visitor ID (${visitorId})`);
+                setMessage(`Unknown Visitor ID: "${visitorId}"`);
             }
         } catch (err) {
             console.error("Scanner Error", err);
             setScanStatus('error');
-            setMessage('Database Error');
+            setMessage('Database error processing scan');
         }
 
-        // Reset scanner after 3 seconds
+        // Reset scanner after 3.5 seconds
         setTimeout(() => {
             setScanStatus('idle');
-            setMessage('Point camera at Visitor QR Code');
+            setMessage('Position visitor QR code within the frame');
+            setVisitorDetails(null);
             setIsScanning(true);
-        }, 3000);
+        }, 3500);
         
     }, [isScanning]);
 
     return (
-        <section className="view-section active scanner-section">
+        <section className="scanner-section">
             <div className="glass-panel scanner-container">
                 <div className="scanner-header">
-                    <h2>Auto Check-In / Check-Out</h2>
-                    <p>Security QR Scanner</p>
+                    <h2>Auto Gate QR Scanner</h2>
+                    <p>Hold visitor pass or mobile screen in front of the camera</p>
                 </div>
                 
                 <div className={`scanner-viewport ${scanStatus}`}>
@@ -97,25 +101,80 @@ export default function QRScanner() {
                             onScan={handleScan}
                             onError={(error) => console.log(error?.message)}
                             components={{
-                                audio: false, // We will just use visual cues
-                                onOff: true,
-                                finder: true,
+                                audio: false,
+                                torch: false,
+                                count: false,
+                                onOff: false
                             }}
                             styles={{
-                                container: { width: '100%', height: '100%' }
+                                container: { width: '100%', height: '100%' },
+                                video: { objectFit: 'cover', width: '100%', height: '100%' }
                             }}
                         />
                     ) : (
-                        <div className="scan-result-overlay">
-                            {scanStatus === 'success-in' && <i className="fa-solid fa-arrow-right-to-bracket text-success"></i>}
-                            {scanStatus === 'success-out' && <i className="fa-solid fa-person-walking-arrow-right text-primary"></i>}
-                            {scanStatus === 'error' && <i className="fa-solid fa-circle-xmark text-danger"></i>}
+                        <div className="scan-paused-placeholder">
+                            <i className="fa-solid fa-spinner fa-spin"></i>
+                        </div>
+                    )}
+
+                    {/* Viewfinder Target Frame Overlay */}
+                    <div className="viewfinder-frame">
+                        <span className="corner-top-left"></span>
+                        <span className="corner-top-right"></span>
+                        <span className="corner-bottom-left"></span>
+                        <span className="corner-bottom-right"></span>
+                        <div className="scan-laser-line"></div>
+                    </div>
+
+                    {scanStatus === 'success-in' && (
+                        <div className="scan-result-overlay overlay-in">
+                            <i className="fa-solid fa-circle-check"></i>
+                        </div>
+                    )}
+
+                    {scanStatus === 'success-out' && (
+                        <div className="scan-result-overlay overlay-out">
+                            <i className="fa-solid fa-person-walking-arrow-right"></i>
+                        </div>
+                    )}
+
+                    {scanStatus === 'error' && (
+                        <div className="scan-result-overlay overlay-err">
+                            <i className="fa-solid fa-circle-xmark"></i>
                         </div>
                     )}
                 </div>
-                
+
                 <div className={`scanner-message status-${scanStatus}`}>
-                    {message}
+                    <i className={`fa-solid ${
+                        scanStatus === 'success-in' ? 'fa-circle-check' :
+                        scanStatus === 'success-out' ? 'fa-circle-check' :
+                        scanStatus === 'error' ? 'fa-triangle-exclamation' : 'fa-camera'
+                    }`}></i>
+                    <span>{message}</span>
+                </div>
+
+                {visitorDetails && (
+                    <div className="scanned-visitor-summary">
+                        <strong>{visitorDetails.name}</strong> • Host: {visitorDetails.hostName} • ID: {visitorDetails.visitorNo || visitorDetails.id}
+                    </div>
+                )}
+
+                <div className="scanner-actions">
+                    <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        <i className="fa-solid fa-chart-pie"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button 
+                        className="btn btn-primary btn-sm"
+                        onClick={() => navigate('/register')}
+                    >
+                        <i className="fa-solid fa-plus"></i>
+                        <span>New Registration</span>
+                    </button>
                 </div>
             </div>
         </section>

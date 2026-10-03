@@ -1,38 +1,19 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Visitors from './pages/Visitors';
 import PreRegister from './pages/PreRegister';
-import Login from './pages/Login';
-import Scanner from './pages/Scanner';
+import HardwareScannerListener from './components/HardwareScannerListener';
 import MobileAction from './pages/MobileAction';
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider } from './AuthContext';
 import { seedUsers } from './db';
 import './index.css';
 
-// Protected Route Wrapper
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) return <div>Loading...</div>;
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-};
-
-// Layout for authenticated users
-const AuthenticatedLayout = ({ children }) => {
+// Layout with Sidebar & Header
+const AppLayout = ({ children }) => {
   return (
     <div className="app-container">
       <Sidebar />
@@ -53,68 +34,72 @@ function AppContent() {
   }, []);
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/mobile-action" element={<MobileAction />} />
-      <Route path="/kiosk" element={
-        <div className="app-container" style={{ display: 'block', overflowY: 'auto' }}>
-          <header style={{ padding: '24px', textAlign: 'center', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-            <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '48px', objectFit: 'contain' }} />
-            <h1 style={{ color: 'var(--accent-primary)', margin: 0, fontSize: '28px' }}>Welcome to Esstee Exports</h1>
-            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Self-Registration & Digital Visitor Pass</p>
+    <>
+      <HardwareScannerListener />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/mobile-action" element={<MobileAction />} />
+        <Route path="/kiosk" element={
+        <div style={{ minHeight: '100vh', background: 'var(--bg-dark)', display: 'flex', flexDirection: 'column' }}>
+          <header style={{ 
+            background: '#ffffff', 
+            padding: '14px 28px', 
+            borderBottom: '1px solid var(--border-color)', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '34px', objectFit: 'contain' }} />
+              <div>
+                <h1 style={{ fontSize: '17px', margin: 0, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>Esstee Exports</h1>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Visitor Self-Service Kiosk</span>
+              </div>
+            </div>
+            <a href="/" className="btn btn-outline btn-sm" style={{ textDecoration: 'none' }}>
+              <i className="fa-solid fa-arrow-left"></i> Staff Portal
+            </a>
           </header>
-          <div style={{ padding: '32px' }}>
-             <Register isKiosk={true} />
-          </div>
+          <main style={{ flex: 1, padding: '28px 20px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+            <Register isKiosk={true} />
+          </main>
         </div>
       } />
 
-      {/* Protected Routes */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      <Route path="/dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'security']}>
-          <AuthenticatedLayout>
+        {/* All Staff Routes — No Authentication Required */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        
+        <Route path="/dashboard" element={
+          <AppLayout>
             <Dashboard />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/register" element={
-        <ProtectedRoute allowedRoles={['admin', 'security']}>
-          <AuthenticatedLayout>
+          </AppLayout>
+        } />
+        
+        <Route path="/register" element={
+          <AppLayout>
             <Register />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
+          </AppLayout>
+        } />
 
-      <Route path="/visitors" element={
-        <ProtectedRoute allowedRoles={['admin']}>
-          <AuthenticatedLayout>
+        <Route path="/visitors" element={
+          <AppLayout>
             <Visitors />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
+          </AppLayout>
+        } />
 
-      <Route path="/preregister" element={
-        <ProtectedRoute allowedRoles={['admin', 'security']}>
-          <AuthenticatedLayout>
+        <Route path="/preregister" element={
+          <AppLayout>
             <PreRegister />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/scanner" element={
-        <ProtectedRoute allowedRoles={['admin', 'security']}>
-          <AuthenticatedLayout>
-            <Scanner />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
-      } />
-      
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+          </AppLayout>
+        } />
+        
+        <Route path="/scanner" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 
