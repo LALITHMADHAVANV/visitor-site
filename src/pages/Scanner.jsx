@@ -44,28 +44,43 @@ export default function QRScanner() {
                 setVisitorDetails(visitor);
                 if (isExplicitCheckout || visitor.status === 'checked-in') {
                     // Check Out
+                    const checkOutTime = new Date().toISOString();
                     await db.visitors.update(visitorId, {
                         status: 'checked-out',
-                        checkOutTime: new Date().toISOString()
+                        checkOutTime
                     });
+                    visitor.status = 'checked-out';
+                    visitor.checkOutTime = checkOutTime;
                     
                     setScanStatus('success-out');
                     setMessage(`Checked OUT: ${visitor.name}`);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { visitor, action: 'checkout', timestamp: checkOutTime } 
+                    }));
                     
                 } else if (visitor.status === 'registered' || visitor.status === 'expected') {
                     // Check In
+                    const checkInTime = new Date().toISOString();
                     await db.visitors.update(visitorId, {
                         status: 'checked-in',
-                        checkInTime: new Date().toISOString()
+                        checkInTime
                     });
+                    visitor.status = 'checked-in';
+                    visitor.checkInTime = checkInTime;
                     
                     setScanStatus('success-in');
                     setMessage(`Checked IN: ${visitor.name}`);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { visitor, action: 'checkin', timestamp: checkInTime } 
+                    }));
                     
                 } else if (visitor.status === 'checked-out') {
                     // Notice: Already checked out
                     setScanStatus('error');
                     setMessage(`Notice: Pass expired / already checked out (${visitor.name})`);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { visitor, action: 'already-checked-out', timestamp: visitor.checkOutTime } 
+                    }));
                 }
             } else {
                 setScanStatus('error');

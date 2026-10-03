@@ -13,6 +13,7 @@ export default function Dashboard() {
     const badgeRef = useRef();
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [previewVisitor, setPreviewVisitor] = useState(null);
+    const [scanPopup, setScanPopup] = useState(null); // { visitor, action: 'checkin' | 'checkout' | 'already-checked-out', timestamp }
     const [allVisitors, setAllVisitors] = useState([]);
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'inside', 'checked-out'
     const [searchTerm, setSearchTerm] = useState('');
@@ -53,15 +54,26 @@ export default function Dashboard() {
             console.error("Realtime subscription error on dashboard:", e);
         }
 
-        // Real-time updates from hardware barcode/QR scanner
-        window.addEventListener('visitor-scan-processed', fetchDashboardData);
+        // Real-time updates from hardware barcode/QR scanner or camera scanner
+        const handleScanProcessed = (event) => {
+            fetchDashboardData();
+            if (event.detail && event.detail.visitor) {
+                setScanPopup({
+                    visitor: event.detail.visitor,
+                    action: event.detail.action || (event.detail.visitor.status === 'checked-out' ? 'checkout' : 'checkin'),
+                    timestamp: event.detail.timestamp || new Date().toISOString()
+                });
+            }
+        };
+
+        window.addEventListener('visitor-scan-processed', handleScanProcessed);
 
         // Periodic refresh every 3 seconds for live dashboard
         const interval = setInterval(fetchDashboardData, 3000);
 
         return () => {
             clearInterval(interval);
-            window.removeEventListener('visitor-scan-processed', fetchDashboardData);
+            window.removeEventListener('visitor-scan-processed', handleScanProcessed);
             if (channel) supabase.removeChannel(channel);
         };
     }, [fetchDashboardData]);
@@ -120,11 +132,20 @@ export default function Dashboard() {
 
     const handleCheckout = async (id, name) => {
         if (window.confirm(`Check out ${name || 'visitor'} now?`)) {
+            const checkOutTime = new Date().toISOString();
             await db.visitors.update(id, {
                 status: 'checked-out',
-                checkOutTime: new Date().toISOString()
+                checkOutTime: checkOutTime
             });
             fetchDashboardData();
+            const updated = await db.visitors.get(id);
+            if (updated) {
+                setScanPopup({
+                    visitor: updated,
+                    action: 'checkout',
+                    timestamp: checkOutTime
+                });
+            }
         }
     };
 
@@ -147,6 +168,7 @@ export default function Dashboard() {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 setPreviewVisitor(null);
+                setScanPopup(null);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -788,6 +810,224 @@ export default function Dashboard() {
                                 onClick={() => setPreviewVisitor(null)}
                             >
                                 Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Live Scan Popup Modal on Check-in / Check-out */}
+            {scanPopup && scanPopup.visitor && (
+                <div className="scan-popup-backdrop" onClick={() => setScanPopup(null)}>
+                    <div className="scan-popup-dialog" onClick={(e) => e.stopPropagation()}>
+                        {/* Banner Header based on Scan Action */}
+                        <div className={`scan-popup-banner ${
+                            scanPopup.action === 'checkout' 
+                                ? 'banner-checkout' 
+                                : scanPopup.action === 'already-checked-out' 
+                                ? 'banner-warning' 
+                                : 'banner-checkin'
+                        }`}>
+                            <div className="scan-banner-left">
+                                <div className="scan-banner-icon-box">
+                                    <i className={`fa-solid ${
+                                        scanPopup.action === 'checkout'
+                                            ? 'fa-arrow-right-from-bracket'
+                                            : scanPopup.action === 'already-checked-out'
+                                            ? 'fa-triangle-exclamation'
+                                            : 'fa-circle-check'
+                                    }`}></i>
+                                </div>
+                                <div>
+                                    <h3 className="scan-banner-title">
+                                        {scanPopup.action === 'checkout'
+                                            ? 'VISITOR CHECKED OUT'
+                                            : scanPopup.action === 'already-checked-out'
+                                            ? 'ALREADY CHECKED OUT'
+                                            : 'VISITOR CHECKED IN'}
+                                    </h3>
+                                    <p className="scan-banner-subtitle">
+                                        {scanPopup.action === 'checkout'
+                                            ? 'Exit successfully recorded'
+                                            : scanPopup.action === 'already-checked-out'
+                                            ? 'This pass has already been marked as exited'
+                                            : 'Entry access confirmed & pass activated'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="scan-banner-right">
+                                <span className="scan-banner-timestamp">
+                                    <i className="fa-regular fa-clock" style={{ marginRight: '5px' }}></i>
+                                    {formatTime(scanPopup.timestamp)}
+                                </span>
+                                <button 
+                                    className="scan-banner-close" 
+                                    onClick={() => setScanPopup(null)}
+                                    title="Close popup (Esc)"
+                                >
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="scan-popup-body">
+                            <div className="scan-popup-identity">
+                                <div className="scan-popup-photo-box">
+                                    {scanPopup.visitor.photoUrl || scanPopup.visitor.photo ? (
+                                        <img 
+                                            src={scanPopup.visitor.photoUrl || scanPopup.visitor.photo} 
+                                            alt={scanPopup.visitor.name} 
+                                            className="scan-popup-photo" 
+                                        />
+                                    ) : (
+                                        <div className="scan-popup-photo-placeholder">
+                                            {scanPopup.visitor.name ? scanPopup.visitor.name.charAt(0).toUpperCase() : 'V'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="scan-popup-identity-text">
+                                    <h2 className="scan-popup-name">{scanPopup.visitor.name}</h2>
+                                    <div className="scan-popup-id-row">
+                                        <span className="badge-chip">
+                                            <i className="fa-solid fa-id-badge" style={{ marginRight: '4px' }}></i>
+                                            {scanPopup.visitor.visitorNo || scanPopup.visitor.id}
+                                        </span>
+                                        <span className={`status-badge ${scanPopup.visitor.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
+                                            <i className={`fa-solid ${scanPopup.visitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
+                                            {scanPopup.visitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
+                                        </span>
+                                        {isOldVisitor(scanPopup.visitor) ? (
+                                            <span className="badge-tag-returning" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '4px' }}></i> Returning
+                                            </span>
+                                        ) : (
+                                            <span className="badge-tag-new" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                <i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> New
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="scan-popup-subinfo">
+                                        {scanPopup.visitor.phone && (
+                                            <div>
+                                                <i className="fa-solid fa-phone"></i>
+                                                <span>{scanPopup.visitor.phone}</span>
+                                            </div>
+                                        )}
+                                        {scanPopup.visitor.company && (
+                                            <div>
+                                                <i className="fa-solid fa-building"></i>
+                                                <span>{scanPopup.visitor.company}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="scan-popup-grid">
+                                <div className="scan-detail-item">
+                                    <div className="detail-card-icon icon-teal">
+                                        <i className="fa-solid fa-clock"></i>
+                                    </div>
+                                    <div>
+                                        <span className="scan-item-label">Check-In Time</span>
+                                        <span className="scan-item-val">{formatDateTime(scanPopup.visitor.checkInTime)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="scan-detail-item">
+                                    <div className="detail-card-icon icon-orange">
+                                        <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                    </div>
+                                    <div>
+                                        <span className="scan-item-label">Check-Out Time</span>
+                                        <span className="scan-item-val">
+                                            {scanPopup.visitor.checkOutTime ? (
+                                                formatDateTime(scanPopup.visitor.checkOutTime)
+                                            ) : (
+                                                <span style={{ color: '#059669', fontWeight: '700' }}>Active Inside</span>
+                                            )}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="scan-detail-item">
+                                    <div className="detail-card-icon icon-blue">
+                                        <i className="fa-solid fa-user-tie"></i>
+                                    </div>
+                                    <div>
+                                        <span className="scan-item-label">To Meet Person</span>
+                                        <span className="scan-item-val" style={{ color: '#1d4ed8' }}>
+                                            {scanPopup.visitor.hostName || '-'}
+                                        </span>
+                                        {scanPopup.visitor.purpose && (
+                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                                                {scanPopup.visitor.purpose}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="scan-detail-item">
+                                    <div className="detail-card-icon icon-purple">
+                                        <i className="fa-solid fa-car"></i>
+                                    </div>
+                                    <div>
+                                        <span className="scan-item-label">Vehicle Details</span>
+                                        <span className="scan-item-val" style={{ fontFamily: scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? 'monospace' : 'inherit' }}>
+                                            {scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? scanPopup.visitor.vehicleNo : 'No Vehicle'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Extra Members Group Box if any */}
+                            {scanPopup.visitor.hasExtraMembers === 'yes' && (
+                                <div className="scan-popup-group-box">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                        <i className="fa-solid fa-users" style={{ color: '#2563eb' }}></i>
+                                        <strong style={{ fontSize: '13px', color: '#1e3a8a' }}>
+                                            Accompanying Members ({scanPopup.visitor.extraMembersCount || 1} Persons)
+                                        </strong>
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#2563eb' }}>
+                                        Member IDs: <strong>{scanPopup.visitor.extraMembersIds || 'Included in main pass'}</strong>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer Actions */}
+                        <div className="scan-popup-footer">
+                            <button 
+                                className="btn btn-secondary btn-sm" 
+                                onClick={() => printBadge(scanPopup.visitor)}
+                                title="Print Badge"
+                            >
+                                <i className="fa-solid fa-print"></i>
+                                <span>Print Badge</span>
+                            </button>
+                            {scanPopup.visitor.status === 'checked-in' && (
+                                <button 
+                                    className="btn btn-outline btn-sm"
+                                    style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                                    onClick={() => {
+                                        const v = scanPopup.visitor;
+                                        setScanPopup(null);
+                                        handleCheckout(v.id, v.name);
+                                    }}
+                                    title="Check Out Visitor"
+                                >
+                                    <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                    <span>Check Out Now</span>
+                                </button>
+                            )}
+                            <button 
+                                className="btn btn-primary btn-sm"
+                                onClick={() => setScanPopup(null)}
+                            >
+                                Done
                             </button>
                         </div>
                     </div>

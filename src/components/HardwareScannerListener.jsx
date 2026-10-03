@@ -128,6 +128,7 @@ export default function HardwareScannerListener() {
                     visitor.status = 'checked-out';
                     visitor.checkOutTime = checkOutTime;
 
+                    let scanAction = 'checkout';
                     playChime('out');
                     showAlert({
                         type: 'success-out',
@@ -135,6 +136,13 @@ export default function HardwareScannerListener() {
                         subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
                         visitor
                     });
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { 
+                            visitor, 
+                            action: 'checkout',
+                            timestamp: checkOutTime
+                        } 
+                    }));
                 } else if (visitor.status === 'registered' || visitor.status === 'expected') {
                     // Process Check In
                     const checkInTime = new Date().toISOString();
@@ -156,6 +164,13 @@ export default function HardwareScannerListener() {
                         subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
                         visitor
                     });
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { 
+                            visitor, 
+                            action: 'checkin',
+                            timestamp: checkInTime
+                        } 
+                    }));
                 } else if (visitor.status === 'checked-out') {
                     playChime('error');
                     showAlert({
@@ -164,10 +179,14 @@ export default function HardwareScannerListener() {
                         subtitle: `${visitor.name} left at ${new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
                         visitor
                     });
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { 
+                            visitor, 
+                            action: 'already-checked-out',
+                            timestamp: visitor.checkOutTime
+                        } 
+                    }));
                 }
-
-                // Notify any open views/dashboards to re-fetch
-                window.dispatchEvent(new CustomEvent('visitor-scan-processed', { detail: { visitor } }));
             } else {
                 playChime('error');
                 showAlert({

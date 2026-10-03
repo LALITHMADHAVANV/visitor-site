@@ -697,3 +697,300 @@
     border: 1.5px solid #ffffff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
+
+/* ==========================================================================
+   Live Scan Popup Modal (Check-in & Check-out)
+   ========================================================================== */
+.scan-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 16px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.scan-popup-dialog {
+    background: #ffffff;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    animation: scanModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes scanModalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Banner Headers */
+.scan-popup-banner {
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: #ffffff;
+}
+
+.scan-popup-banner.banner-checkin {
+    background: linear-gradient(135deg, #059669, #10b981);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.scan-popup-banner.banner-checkout {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.scan-popup-banner.banner-warning {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.scan-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.scan-banner-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.scan-banner-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.scan-banner-subtitle {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.scan-banner-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.scan-banner-timestamp {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.scan-banner-close {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 18px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.scan-banner-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Modal Body */
+.scan-popup-body {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.scan-popup-identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.scan-popup-photo-box {
+    width: 76px;
+    height: 76px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scan-popup-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.scan-popup-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.scan-popup-identity-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.scan-popup-name {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.scan-popup-id-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.scan-popup-subinfo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12.5px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.scan-popup-subinfo > div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Scan Details Grid */
+.scan-popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.scan-detail-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.scan-item-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #64748b;
+    margin-bottom: 2px;
+}
+
+.scan-item-val {
+    display: block;
+    font-size: 13px;
+    color: #1e293b;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.scan-popup-group-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+/* Modal Footer */
+.scan-popup-footer {
+    padding: 16px 22px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.scan-popup-footer .btn {
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 600px) {
+    .scan-popup-grid {
+        grid-template-columns: 1fr;
+    }
+    .scan-popup-footer {
+        flex-direction: column;
+    }
+    .scan-popup-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
