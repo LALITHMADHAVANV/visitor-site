@@ -246,15 +246,15 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         </div>
                         <div className="badge-pass-meta">
                             <div className="meta-line">
-                                <span className="meta-label">Date :</span>
+                                <span className="meta-label">DATE :</span>
                                 <span className="meta-val">{formattedDate}</span>
                             </div>
                             <div className="meta-line">
-                                <span className="meta-label">In :</span>
+                                <span className="meta-label">IN :</span>
                                 <span className="meta-val">{formattedInTime}</span>
                             </div>
                             <div className="meta-line">
-                                <span className="meta-label">Vehicle :</span>
+                                <span className="meta-label">VEHICLE :</span>
                                 <span className="meta-val">{vehicleNo.toUpperCase()}</span>
                             </div>
                         </div>
