@@ -209,7 +209,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
             <div className="badge-thermal-slip">
                 {/* 1. Company Name on Top */}
                 <div className="badge-company-header">
-                    <h1 className="badge-company-title">ESS TEE EXPORTS PVT LTD</h1>
+                    <h1 className="badge-company-title">ESSTEE EXPORTS INDIA PVT LTD</h1>
                     <h2 className="badge-pass-title">VISITOR PASS - HO</h2>
                 </div>
 
@@ -298,14 +298,14 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                     {/* Visitor Badge */}
                     <div className="badge-info-row badge-unit-row">
                         <span className="info-label bold-label">Visitor Badge :</span>
-                        <span className="info-val bold-val">{visitorBadgeId}</span>
+                        <span className="info-val bold-val">{String(visitorBadgeId).toUpperCase()}</span>
                     </div>
 
                     {/* Extra Person Pass */}
                     {extraPassString && (
                         <div className="badge-info-row badge-unit-row">
                             <span className="info-label bold-label">Extra Pass :</span>
-                            <span className="info-val bold-val">{extraPassString}</span>
+                            <span className="info-val bold-val">{extraPassString.toUpperCase()}</span>
                         </div>
                     )}
 
