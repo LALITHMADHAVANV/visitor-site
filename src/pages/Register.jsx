@@ -7,6 +7,7 @@ import { db, generateVisitorId } from '../db';
 import { supabase } from '../supabaseClient';
 import { OFFICE_HOSTS } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
+import { generateNameAvatar } from '../avatarUtils';
 import './Register.css';
 
 const getIdValidation = (type, val) => {
@@ -327,7 +328,7 @@ export default function Register({ isKiosk = false }) {
                 extraMembersIds: formData.hasExtraMembers === 'yes' ? formData.extraMembersIds.trim() : null,
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
-                photoData: photoData,
+                photoData: photoData || generateNameAvatar(formData.name.trim() || visitorId),
                 status: 'registered',
                 checkInTime: null,
                 checkOutTime: null,
@@ -458,7 +459,7 @@ export default function Register({ isKiosk = false }) {
                             {registeredVisitor.photoData ? (
                                 <img src={registeredVisitor.photoData} alt={registeredVisitor.name} />
                             ) : (
-                                <i className="fa-solid fa-user"></i>
+                                <img src={generateNameAvatar(registeredVisitor.name)} alt={registeredVisitor.name} />
                             )}
                         </div>
 
@@ -679,14 +680,27 @@ export default function Register({ isKiosk = false }) {
                                     <img src={photoData} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'relative', zIndex: 1 }} />
                                 )}
                             </div>
-                            <div className="camera-actions" style={{ marginTop: '16px' }}>
+                            <div className="camera-actions" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {!photoData ? (
-                                    <button type="button" className="btn btn-capture-large" onClick={capture}>
-                                        <i className="fa-solid fa-camera"></i> Capture Photo
-                                    </button>
+                                    <>
+                                        <button type="button" className="btn btn-capture-large" onClick={capture}>
+                                            <i className="fa-solid fa-camera"></i> Capture Photo
+                                        </button>
+                                        {formData.name.trim() && (
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-secondary" 
+                                                style={{ fontSize: '13px', padding: '9px 14px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                                onClick={() => setPhotoData(generateNameAvatar(formData.name))}
+                                                title="Generate personalized avatar from name"
+                                            >
+                                                <i className="fa-solid fa-user-gear"></i> Use Name Avatar
+                                            </button>
+                                        )}
+                                    </>
                                 ) : (
                                     <button type="button" className="btn btn-retake-large" onClick={retake}>
-                                        <i className="fa-solid fa-rotate-left"></i> Retake Photo
+                                        <i className="fa-solid fa-rotate-left"></i> Retake / Use Camera
                                     </button>
                                 )}
                             </div>

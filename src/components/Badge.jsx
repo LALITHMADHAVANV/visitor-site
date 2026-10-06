@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { generateNameAvatar } from '../avatarUtils';
 import './Badge.css';
 
 // Optimized for standard 80mm (3-inch) Thermal Bill / Receipt Printers (e.g. TVS RP 3230)
@@ -136,7 +137,8 @@ function useEnhancedThermalPhoto(src) {
 const Badge = React.forwardRef(({ visitor }, ref) => {
     if (!visitor) return null;
 
-    const rawPhoto = visitor.photoData || visitor.photo || visitor.photoUrl;
+    const nameAvatar = generateNameAvatar(visitor.name || visitor.visitorNo || visitor.id || 'Visitor');
+    const rawPhoto = visitor.photoData || visitor.photo || visitor.photoUrl || nameAvatar;
     const enhancedPhoto = useEnhancedThermalPhoto(rawPhoto);
 
     const getCleanOrigin = () => {
@@ -181,7 +183,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
         : '-';
 
     const vehicleNo = visitor.vehicleNo && visitor.vehicleNo !== 'No' ? visitor.vehicleNo : '-';
-    const unitName = visitor.unit || 'HEAD OFFICE';
+    const visitorBadgeId = visitor.visitorNo || visitor.id || '-';
 
     return (
         <div className="badge-print-container" ref={ref}>
@@ -189,7 +191,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                 {/* 1. Company Name on Top */}
                 <div className="badge-company-header">
                     <h1 className="badge-company-title">ESS TEE EXPORTS PVT LTD</h1>
-                    <h2 className="badge-pass-title">VISITOR PASS</h2>
+                    <h2 className="badge-pass-title">HO</h2>
                 </div>
 
                 {/* 2. Side-by-Side: Left Photo, Right QR Code with Date & In Time Below QR */}
@@ -197,10 +199,10 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                     {/* Left: Visitor Photo (Enhanced for thermal clarity) */}
                     <div className="badge-left-photo-col">
                         <div className="badge-photo-wrapper">
-                            {enhancedPhoto ? (
+                            {enhancedPhoto || nameAvatar ? (
                                 <img 
-                                    src={enhancedPhoto} 
-                                    alt="Visitor" 
+                                    src={enhancedPhoto || nameAvatar} 
+                                    alt={visitor.name || "Visitor"} 
                                     className="badge-visitor-photo" 
                                 />
                             ) : (
@@ -274,21 +276,21 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <span className="info-val">{cleanPurpose.toUpperCase()}</span>
                     </div>
 
-                    {/* Unit */}
+                    {/* Visitor Badge */}
                     <div className="badge-info-row badge-unit-row">
-                        <span className="info-label bold-label">Unit :</span>
-                        <span className="info-val bold-val">{unitName}</span>
+                        <span className="info-label bold-label">Visitor Badge :</span>
+                        <span className="info-val bold-val">{visitorBadgeId}</span>
                     </div>
 
                     {/* Signatures Section: Authorized Sign & Security Sign */}
                     <div className="badge-signatures-container">
                         <div className="badge-sign-box">
                             <div className="badge-sign-space"></div>
-                            <span className="badge-sign-label">Authorized Sign</span>
+                            <span className="badge-sign-label">VISITOR Sign</span>
                         </div>
                         <div className="badge-sign-box">
                             <div className="badge-sign-space"></div>
-                            <span className="badge-sign-label">Security Sign</span>
+                            <span className="badge-sign-label">AUTHORIZED Sign</span>
                         </div>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import { useReactToPrint } from 'react-to-print';
 import { db } from '../db';
 import { sendTelegramMessage } from '../telegram';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
+import { getVisitorPhoto } from '../avatarUtils';
 import './Scanner.css'; // Reuse scanner styles
 
 export default function MobileAction() {
@@ -180,18 +181,11 @@ export default function MobileAction() {
                                 boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
                                 marginBottom: '10px'
                             }}>
-                                {visitor.photoData || visitor.photo_data || visitor.photo ? (
-                                    <img 
-                                        src={visitor.photoData || visitor.photo_data || visitor.photo} 
-                                        alt={visitor.name} 
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                    />
-                                ) : (
-                                    <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-                                        <i className="fa-solid fa-user-shield" style={{ fontSize: '44px', color: '#cbd5e1', marginBottom: '4px' }}></i>
-                                        <p style={{ margin: 0, fontSize: '11px', fontWeight: '600' }}>No Face Photo</p>
-                                    </div>
-                                )}
+                                <img 
+                                    src={getVisitorPhoto(visitor)} 
+                                    alt={visitor.name} 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
                             </div>
 
                             <span style={{

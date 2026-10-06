@@ -5,6 +5,7 @@ import { db } from '../db';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
+import { getVisitorPhoto } from '../avatarUtils';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -454,13 +455,11 @@ export default function Dashboard() {
                                                             onClick={() => setPreviewVisitor(v)}
                                                             title="Touch / click to view visitor details & photo"
                                                         >
-                                                            {v.photoData ? (
-                                                                <img src={v.photoData} className="avatar-sm" alt={v.name} />
-                                                            ) : (
-                                                                <div className="avatar-placeholder">
-                                                                    {v.name ? v.name.charAt(0).toUpperCase() : 'V'}
-                                                                </div>
-                                                            )}
+                                                            <img 
+                                                                src={getVisitorPhoto(v)} 
+                                                                className="avatar-sm" 
+                                                                alt={v.name} 
+                                                            />
                                                             <div className="avatar-zoom-hint">
                                                                 <i className="fa-solid fa-magnifying-glass-plus"></i>
                                                             </div>
@@ -663,17 +662,11 @@ export default function Dashboard() {
                             {/* Photo & Identity Section */}
                             <div className="visitor-modal-identity">
                                 <div className="visitor-modal-photo-wrapper">
-                                    {(previewVisitor.photoData || previewVisitor.photo_data || previewVisitor.photo || previewVisitor.photoUrl) ? (
-                                        <img 
-                                            src={previewVisitor.photoData || previewVisitor.photo_data || previewVisitor.photo || previewVisitor.photoUrl} 
-                                            alt={previewVisitor.name} 
-                                            className="visitor-modal-photo"
-                                        />
-                                    ) : (
-                                        <div className="visitor-modal-photo-placeholder">
-                                            {previewVisitor.name ? previewVisitor.name.charAt(0).toUpperCase() : 'V'}
-                                        </div>
-                                    )}
+                                    <img 
+                                        src={getVisitorPhoto(previewVisitor)} 
+                                        alt={previewVisitor.name} 
+                                        className="visitor-modal-photo"
+                                    />
                                     <span className={`status-badge ${previewVisitor.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ marginTop: '8px', fontSize: '11px' }}>
                                         <i className={`fa-solid ${previewVisitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
                                         {previewVisitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
@@ -881,17 +874,11 @@ export default function Dashboard() {
                         <div className="scan-popup-body">
                             <div className="scan-popup-identity">
                                 <div className="scan-popup-photo-box">
-                                    {(scanPopup.visitor.photoData || scanPopup.visitor.photo_data || scanPopup.visitor.photo || scanPopup.visitor.photoUrl) ? (
-                                        <img 
-                                            src={scanPopup.visitor.photoData || scanPopup.visitor.photo_data || scanPopup.visitor.photo || scanPopup.visitor.photoUrl} 
-                                            alt={scanPopup.visitor.name} 
-                                            className="scan-popup-photo" 
-                                        />
-                                    ) : (
-                                        <div className="scan-popup-photo-placeholder">
-                                            {scanPopup.visitor.name ? scanPopup.visitor.name.charAt(0).toUpperCase() : 'V'}
-                                        </div>
-                                    )}
+                                    <img 
+                                        src={getVisitorPhoto(scanPopup.visitor)} 
+                                        alt={scanPopup.visitor.name} 
+                                        className="scan-popup-photo" 
+                                    />
                                 </div>
                                 <div className="scan-popup-identity-text">
                                     <h2 className="scan-popup-name">{scanPopup.visitor.name}</h2>

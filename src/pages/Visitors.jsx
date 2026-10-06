@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../AuthContext';
+import { getVisitorPhoto } from '../avatarUtils';
 
 export default function Visitors() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -293,13 +294,11 @@ export default function Visitors() {
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        {v.photoData ? (
-                                                            <img src={v.photoData} className="avatar-sm" alt={v.name} />
-                                                        ) : (
-                                                            <div className="avatar-placeholder">
-                                                                {v.name ? v.name.charAt(0).toUpperCase() : 'V'}
-                                                            </div>
-                                                        )}
+                                                        <img 
+                                                            src={getVisitorPhoto(v)} 
+                                                            className="avatar-sm" 
+                                                            alt={v.name} 
+                                                        />
                                                         <div>
                                                             <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{v.name}</strong>
                                                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>

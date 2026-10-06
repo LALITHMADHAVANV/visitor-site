@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { generateNameAvatar } from './avatarUtils';
 
 function normalizeVisitor(v) {
     if (!v) return v;
@@ -13,6 +14,9 @@ function normalizeVisitor(v) {
     }
     if (v.photo && !v.photoData) {
         v.photoData = v.photo;
+    }
+    if (!v.photoData && (v.name || v.visitorNo || v.id)) {
+        v.photoData = generateNameAvatar(v.name || v.visitorNo || v.id);
     }
     // If idType / idNumber is not in columns, extract from purpose tag [ID: Type - Number]
     if ((!v.idType || !v.idNumber) && v.purpose && v.purpose.includes('[ID:')) {
