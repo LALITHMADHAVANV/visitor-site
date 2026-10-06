@@ -245,6 +245,10 @@
     margin-top: 3px;
 }
 
+.badge-unit-row .info-label {
+    min-width: 96px;
+}
+
 .bold-label, .bold-val {
     font-weight: 900 !important;
     font-size: 12px;

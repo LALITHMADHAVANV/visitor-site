@@ -185,13 +185,32 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
     const vehicleNo = visitor.vehicleNo && visitor.vehicleNo !== 'No' ? visitor.vehicleNo : '-';
     const visitorBadgeId = visitor.visitorNo || visitor.id || '-';
 
+    // Extra member pass IDs (if extra persons are present)
+    let rawExtraIds = (visitor.extraMembersIds || '').trim();
+    if (!rawExtraIds && visitor.purpose && visitor.purpose.includes('[Extra:')) {
+        const match = visitor.purpose.match(/\[Extra:\s*\d+\s*Members?\s*(?:\(([^\]]+)\))?\]/);
+        if (match && match[1]) {
+            rawExtraIds = match[1].trim();
+        }
+    }
+
+    const parsedExtraIds = rawExtraIds 
+        ? rawExtraIds.split(/[,/;\n]+/).map(s => s.trim()).filter(Boolean) 
+        : [];
+        
+    const extraPassList = parsedExtraIds.length > 0 
+        ? parsedExtraIds 
+        : (extraCount > 0 ? Array.from({ length: extraCount }, (_, i) => `${visitor.visitorNo || visitor.id}-M${i + 1}`) : []);
+
+    const extraPassString = extraPassList.join(', ');
+
     return (
         <div className="badge-print-container" ref={ref}>
             <div className="badge-thermal-slip">
                 {/* 1. Company Name on Top */}
                 <div className="badge-company-header">
                     <h1 className="badge-company-title">ESS TEE EXPORTS PVT LTD</h1>
-                    <h2 className="badge-pass-title">HO</h2>
+                    <h2 className="badge-pass-title">VISITOR PASS - HO</h2>
                 </div>
 
                 {/* 2. Side-by-Side: Left Photo, Right QR Code with Date & In Time Below QR */}
@@ -281,6 +300,14 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
                         <span className="info-label bold-label">Visitor Badge :</span>
                         <span className="info-val bold-val">{visitorBadgeId}</span>
                     </div>
+
+                    {/* Extra Person Pass */}
+                    {extraPassString && (
+                        <div className="badge-info-row badge-unit-row">
+                            <span className="info-label bold-label">Extra Pass :</span>
+                            <span className="info-val bold-val">{extraPassString}</span>
+                        </div>
+                    )}
 
                     {/* Signatures Section: Authorized Sign & Security Sign */}
                     <div className="badge-signatures-container">
