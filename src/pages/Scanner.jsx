@@ -1,6 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
+import { useReactToPrint } from 'react-to-print';
+import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { db } from '../db';
 import './Scanner.css';
 
@@ -10,6 +12,22 @@ export default function QRScanner() {
     const [message, setMessage] = useState('Position visitor QR code within the frame');
     const [visitorDetails, setVisitorDetails] = useState(null);
     const [isScanning, setIsScanning] = useState(true);
+    const [printVisitor, setPrintVisitor] = useState(null);
+    const badgeRef = useRef(null);
+
+    const handlePrint = useReactToPrint({
+        contentRef: badgeRef,
+        documentTitle: printVisitor ? `Visitor_Badge_${printVisitor.id}` : 'Visitor_Badge',
+        pageStyle: THERMAL_80MM_PAGE_STYLE,
+    });
+
+    const triggerAutoPrint = (visitorToPrint) => {
+        if (!visitorToPrint) return;
+        setPrintVisitor({ ...visitorToPrint });
+        setTimeout(() => {
+            handlePrint();
+        }, 200);
+    };
 
     const handleScan = useCallback(async (result) => {
         if (!result || !result[0]) return;
@@ -22,6 +40,7 @@ export default function QRScanner() {
         try {
             let visitorId = rawCode ? rawCode.trim() : '';
             let isExplicitCheckout = false;
+            let isExplicitCheckin = false;
 
             if (visitorId.includes('id=')) {
                 try {
@@ -30,15 +49,20 @@ export default function QRScanner() {
                     const action = parsedUrl.searchParams.get('action');
                     if (extractedId) visitorId = extractedId;
                     if (action === 'checkout') isExplicitCheckout = true;
+                    if (action === 'checkin') isExplicitCheckin = true;
                 } catch (_e) {
                     const idMatch = visitorId.match(/[?&]id=([^&]+)/);
                     if (idMatch) visitorId = idMatch[1];
                     if (visitorId.includes('action=checkout')) isExplicitCheckout = true;
+                    if (visitorId.includes('action=checkin')) isExplicitCheckin = true;
                 }
             }
 
             // Find visitor
-            const visitor = await db.visitors.get(visitorId);
+            let visitor = await db.visitors.get(visitorId);
+            if (!visitor) {
+                visitor = await db.visitors.where('visitorNo').equals(visitorId).first();
+            }
             
             if (visitor) {
                 setVisitorDetails(visitor);
@@ -52,10 +76,10 @@ export default function QRScanner() {
                     window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
                         detail: { visitor, action: 'already-checked-out', timestamp: visitor.checkOutTime || new Date().toISOString() } 
                     }));
-                } else if (isExplicitCheckout || visitor.status === 'checked-in') {
+                } else if (isExplicitCheckout || (visitor.status === 'checked-in' && !isExplicitCheckin)) {
                     // Check Out
                     const checkOutTime = new Date().toISOString();
-                    await db.visitors.update(visitorId, {
+                    await db.visitors.update(visitor.id, {
                         status: 'checked-out',
                         checkOutTime
                     });
@@ -71,7 +95,7 @@ export default function QRScanner() {
                 } else if (visitor.status === 'registered' || visitor.status === 'expected') {
                     // Check In
                     const checkInTime = new Date().toISOString();
-                    await db.visitors.update(visitorId, {
+                    await db.visitors.update(visitor.id, {
                         status: 'checked-in',
                         checkInTime
                     });
@@ -79,10 +103,15 @@ export default function QRScanner() {
                     visitor.checkInTime = checkInTime;
                     
                     setScanStatus('success-in');
-                    setMessage(`Checked IN: ${visitor.name}`);
+                    setMessage(`Checked IN • Printing Badge: ${visitor.name}`);
                     window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
                         detail: { visitor, action: 'checkin', timestamp: checkInTime } 
                     }));
+                    triggerAutoPrint(visitor);
+                } else if (visitor.status === 'checked-in' && isExplicitCheckin) {
+                    setScanStatus('success-in');
+                    setMessage(`Printing Badge: ${visitor.name}`);
+                    triggerAutoPrint(visitor);
                 }
             } else {
                 setScanStatus('error');
@@ -106,6 +135,7 @@ export default function QRScanner() {
 
     return (
         <section className="scanner-section">
+            <Badge ref={badgeRef} visitor={printVisitor} />
             <div className="glass-panel scanner-container">
                 <div className="scanner-header">
                     <h2>Auto Gate QR Scanner</h2>
@@ -178,6 +208,17 @@ export default function QRScanner() {
                 )}
 
                 <div className="scanner-actions">
+                    {visitorDetails && (
+                        <button 
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => triggerAutoPrint(visitorDetails)}
+                            title="Print Badge"
+                        >
+                            <i className="fa-solid fa-print"></i>
+                            <span>Print Badge</span>
+                        </button>
+                    )}
                     <button 
                         className="btn btn-secondary btn-sm"
                         onClick={() => navigate('/dashboard')}
@@ -186,7 +227,7 @@ export default function QRScanner() {
                         <span>Dashboard</span>
                     </button>
                     <button 
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-outline btn-sm"
                         onClick={() => navigate('/register')}
                     >
                         <i className="fa-solid fa-plus"></i>

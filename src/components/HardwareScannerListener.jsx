@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { db } from '../db';
 import { sendTelegramMessage } from '../telegram';
+import { useReactToPrint } from 'react-to-print';
+import Badge, { THERMAL_80MM_PAGE_STYLE } from './Badge';
 import './HardwareScannerListener.css';
 
 // Audio feedback using Web Audio API
@@ -47,9 +49,25 @@ function playChime(type = 'in') {
 
 export default function HardwareScannerListener() {
     const [scanAlert, setScanAlert] = useState(null); // { type: 'success-in' | 'success-out' | 'error', title, subtitle, visitor }
+    const [printVisitor, setPrintVisitor] = useState(null);
+    const badgeRef = useRef(null);
     const bufferRef = useRef('');
     const lastKeyTimeRef = useRef(0);
     const alertTimeoutRef = useRef(null);
+
+    const handlePrint = useReactToPrint({
+        contentRef: badgeRef,
+        documentTitle: printVisitor ? `Visitor_Badge_${printVisitor.id}` : 'Visitor_Badge',
+        pageStyle: THERMAL_80MM_PAGE_STYLE,
+    });
+
+    const triggerAutoPrint = (visitorToPrint) => {
+        if (!visitorToPrint) return;
+        setPrintVisitor({ ...visitorToPrint });
+        setTimeout(() => {
+            handlePrint();
+        }, 200);
+    };
 
     useEffect(() => {
         const handleKeyDown = async (e) => {
@@ -94,8 +112,9 @@ export default function HardwareScannerListener() {
         try {
             let visitorId = rawCode.trim();
             let isExplicitCheckout = false;
+            let isExplicitCheckin = false;
 
-            // Handle URL scans: e.g. https://.../mobile-action?id=VIS-1001&action=checkout
+            // Handle URL scans: e.g. https://.../mobile-action?id=VIS-1001&action=checkout or action=checkin
             if (visitorId.includes('id=')) {
                 try {
                     const parsedUrl = new URL(visitorId, window.location.origin);
@@ -103,10 +122,12 @@ export default function HardwareScannerListener() {
                     const action = parsedUrl.searchParams.get('action');
                     if (extractedId) visitorId = extractedId;
                     if (action === 'checkout') isExplicitCheckout = true;
+                    if (action === 'checkin') isExplicitCheckin = true;
                 } catch (_e) {
                     const idMatch = visitorId.match(/[?&]id=([^&]+)/);
                     if (idMatch) visitorId = idMatch[1];
                     if (visitorId.includes('action=checkout')) isExplicitCheckout = true;
+                    if (visitorId.includes('action=checkin')) isExplicitCheckin = true;
                 }
             }
 
@@ -136,7 +157,7 @@ export default function HardwareScannerListener() {
                             timestamp: visitor.checkOutTime || new Date().toISOString()
                         } 
                     }));
-                } else if (isExplicitCheckout || visitor.status === 'checked-in') {
+                } else if (isExplicitCheckout || (visitor.status === 'checked-in' && !isExplicitCheckin)) {
                     // Process Check Out
                     const checkOutTime = new Date().toISOString();
                     await db.visitors.update(visitor.id, {
@@ -178,7 +199,7 @@ export default function HardwareScannerListener() {
                     playChime('in');
                     showAlert({
                         type: 'success-in',
-                        title: 'Visitor Checked In',
+                        title: 'Visitor Checked In • Printing Badge',
                         subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
                         visitor
                     });
@@ -189,6 +210,19 @@ export default function HardwareScannerListener() {
                             timestamp: checkInTime
                         } 
                     }));
+
+                    // Automatically print the badge on the connected printer
+                    triggerAutoPrint(visitor);
+                } else if (visitor.status === 'checked-in' && isExplicitCheckin) {
+                    // Re-print badge if check-in QR scanned while already inside
+                    playChime('in');
+                    showAlert({
+                        type: 'success-in',
+                        title: 'Printing Visitor Badge',
+                        subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
+                        visitor
+                    });
+                    triggerAutoPrint(visitor);
                 }
             } else {
                 playChime('error');
@@ -221,27 +255,42 @@ export default function HardwareScannerListener() {
         }, 4000);
     };
 
-    if (!scanAlert) return null;
-
     return (
-        <div className={`hardware-scan-banner banner-${scanAlert.type}`}>
-            <div className="banner-icon">
-                <i className={`fa-solid ${
-                    scanAlert.type === 'success-in' ? 'fa-circle-check' :
-                    scanAlert.type === 'success-out' ? 'fa-arrow-right-from-bracket' :
-                    scanAlert.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'
-                }`}></i>
-            </div>
-            <div className="banner-content">
-                <div className="banner-title">{scanAlert.title}</div>
-                <div className="banner-subtitle">{scanAlert.subtitle}</div>
-                {scanAlert.visitor?.hostName && (
-                    <div className="banner-meta">Host: {scanAlert.visitor.hostName} • Company: {scanAlert.visitor.company || 'N/A'}</div>
-                )}
-            </div>
-            <button className="banner-close" onClick={() => setScanAlert(null)}>
-                <i className="fa-solid fa-xmark"></i>
-            </button>
-        </div>
+        <>
+            <Badge ref={badgeRef} visitor={printVisitor} />
+            {scanAlert && (
+                <div className={`hardware-scan-banner banner-${scanAlert.type}`}>
+                    <div className="banner-icon">
+                        <i className={`fa-solid ${
+                            scanAlert.type === 'success-in' ? 'fa-circle-check' :
+                            scanAlert.type === 'success-out' ? 'fa-arrow-right-from-bracket' :
+                            scanAlert.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'
+                        }`}></i>
+                    </div>
+                    <div className="banner-content">
+                        <div className="banner-title">{scanAlert.title}</div>
+                        <div className="banner-subtitle">{scanAlert.subtitle}</div>
+                        {scanAlert.visitor?.hostName && (
+                            <div className="banner-meta">Host: {scanAlert.visitor.hostName} • Company: {scanAlert.visitor.company || 'N/A'}</div>
+                        )}
+                    </div>
+                    {scanAlert.visitor && scanAlert.type === 'success-in' && (
+                        <button 
+                            type="button"
+                            className="btn btn-sm btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '12px', marginRight: '8px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: '6px', cursor: 'pointer' }}
+                            onClick={() => triggerAutoPrint(scanAlert.visitor)}
+                            title="Print Badge"
+                        >
+                            <i className="fa-solid fa-print"></i>
+                            <span>Print</span>
+                        </button>
+                    )}
+                    <button className="banner-close" onClick={() => setScanAlert(null)}>
+                        <i className="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            )}
+        </>
     );
 }
