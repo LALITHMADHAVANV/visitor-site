@@ -117,7 +117,26 @@ export default function HardwareScannerListener() {
             }
 
             if (visitor) {
-                if (isExplicitCheckout || visitor.status === 'checked-in') {
+                // 1. If pass is ALREADY checked out, BLOCK any further checkout and give warning
+                if (visitor.status === 'checked-out') {
+                    playChime('error');
+                    const outTimeStr = visitor.checkOutTime 
+                        ? new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                        : '';
+                    showAlert({
+                        type: 'warning',
+                        title: 'Pass Already Checked Out',
+                        subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id}) already checked out${outTimeStr ? ` at ${outTimeStr}` : ''}. This QR pass cannot be reused.`,
+                        visitor
+                    });
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { 
+                            visitor, 
+                            action: 'already-checked-out',
+                            timestamp: visitor.checkOutTime || new Date().toISOString()
+                        } 
+                    }));
+                } else if (isExplicitCheckout || visitor.status === 'checked-in') {
                     // Process Check Out
                     const checkOutTime = new Date().toISOString();
                     await db.visitors.update(visitor.id, {
@@ -128,7 +147,6 @@ export default function HardwareScannerListener() {
                     visitor.status = 'checked-out';
                     visitor.checkOutTime = checkOutTime;
 
-                    let scanAction = 'checkout';
                     playChime('out');
                     showAlert({
                         type: 'success-out',
@@ -169,21 +187,6 @@ export default function HardwareScannerListener() {
                             visitor, 
                             action: 'checkin',
                             timestamp: checkInTime
-                        } 
-                    }));
-                } else if (visitor.status === 'checked-out') {
-                    playChime('error');
-                    showAlert({
-                        type: 'warning',
-                        title: 'Pass Already Checked Out',
-                        subtitle: `${visitor.name} left at ${new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-                        visitor
-                    });
-                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
-                        detail: { 
-                            visitor, 
-                            action: 'already-checked-out',
-                            timestamp: visitor.checkOutTime
                         } 
                     }));
                 }

@@ -273,7 +273,7 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
 
                     {/* Company */}
                     <div className="badge-info-row">
-                        <span className="info-label">Company :</span>
+                        <span className="info-label">COMPANY :</span>
                         <span className="info-val">{(visitor.company || '-').toUpperCase()}</span>
                     </div>
 
@@ -285,26 +285,26 @@ const Badge = React.forwardRef(({ visitor }, ref) => {
 
                     {/* Host / To Meet */}
                     <div className="badge-info-row">
-                        <span className="info-label">To Meet :</span>
+                        <span className="info-label">TO MEET :</span>
                         <span className="info-val">{(visitor.hostName || visitor.hostname || '-').toUpperCase()}</span>
                     </div>
 
                     {/* Purpose */}
                     <div className="badge-info-row">
-                        <span className="info-label">Purpose :</span>
+                        <span className="info-label">PURPOSE :</span>
                         <span className="info-val">{cleanPurpose.toUpperCase()}</span>
                     </div>
 
                     {/* Visitor Badge */}
                     <div className="badge-info-row badge-unit-row">
-                        <span className="info-label bold-label">Visitor Badge :</span>
+                        <span className="info-label bold-label">VISITOR BADGE :</span>
                         <span className="info-val bold-val">{String(visitorBadgeId).toUpperCase()}</span>
                     </div>
 
                     {/* Extra Person Pass */}
                     {extraPassString && (
                         <div className="badge-info-row badge-unit-row">
-                            <span className="info-label bold-label">Extra Pass :</span>
+                            <span className="info-label bold-label">EXTRA PASS :</span>
                             <span className="info-val bold-val">{extraPassString.toUpperCase()}</span>
                         </div>
                     )}

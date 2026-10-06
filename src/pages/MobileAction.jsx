@@ -46,13 +46,17 @@ export default function MobileAction() {
                 // 1. Security Exit Scan (`action=checkout`)
                 if (actionParam === 'checkout') {
                     if (v.status === 'checked-out') {
-                        if (statusRef.current !== 'success-out') setStatus('success-out');
+                        if (statusRef.current !== 'already-checked-out') setStatus('already-checked-out');
                     } else {
+                        const checkOutTime = new Date().toISOString();
                         await db.visitors.update(v.id, {
                             status: 'checked-out',
-                            checkOutTime: new Date().toISOString(),
+                            checkOutTime,
                             auth_pin: null
                         });
+                        v.status = 'checked-out';
+                        v.checkOutTime = checkOutTime;
+                        setVisitor(v);
                         if (statusRef.current !== 'success-out') setStatus('success-out');
                     }
                     return;
@@ -76,7 +80,7 @@ export default function MobileAction() {
                 } else if (v.status === 'checked-in') {
                     if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-out') {
-                    if (statusRef.current !== 'success-out') setStatus('success-out');
+                    if (statusRef.current !== 'already-checked-out') setStatus('already-checked-out');
                 } else if (v.status !== 'registered' && v.status !== 'expected') {
                     if (statusRef.current !== 'error') setStatus('error');
                 }
@@ -381,6 +385,66 @@ export default function MobileAction() {
                         <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
                         <h3 style={{ color: 'var(--accent-primary)', marginBottom: '8px' }}>Checked Out Successfully!</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Thank you for visiting. Have a safe trip!</p>
+                    </div>
+                )}
+
+                {/* State 6: Already Checked Out (Pass Expired / Cannot be reused) */}
+                {status === 'already-checked-out' && (
+                    <div>
+                        <div style={{
+                            width: '72px',
+                            height: '72px',
+                            borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 16px',
+                            color: '#ef4444',
+                            fontSize: '36px'
+                        }}>
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 style={{ color: '#ef4444', marginBottom: '8px', fontSize: '20px', fontWeight: 'bold' }}>
+                            Pass Already Checked Out!
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
+                            This QR code has already been scanned for check-out and is no longer valid.
+                        </p>
+                        
+                        <div style={{ 
+                            background: 'rgba(239, 68, 68, 0.06)', 
+                            border: '1px solid rgba(239, 68, 68, 0.2)', 
+                            borderRadius: '12px', 
+                            padding: '16px', 
+                            textAlign: 'left',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Visitor Name:</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>{visitor?.name || 'Visitor'}</strong>
+                            </div>
+                            {visitor?.visitor_custom_id && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Pass ID:</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{visitor.visitor_custom_id}</strong>
+                                </div>
+                            )}
+                            {visitor?.checkOutTime && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Exit Time:</span>
+                                    <strong style={{ color: '#ef4444' }}>
+                                        {new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(visitor.checkOutTime).toLocaleDateString()})
+                                    </strong>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '12px', borderRadius: '10px' }}>
+                            <p style={{ color: '#d97706', fontSize: '13px', margin: 0, fontWeight: '500' }}>
+                                ⛔ <strong>Do not reuse this QR code.</strong> Each exit pass is single-use only.
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

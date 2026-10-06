@@ -42,7 +42,17 @@ export default function QRScanner() {
             
             if (visitor) {
                 setVisitorDetails(visitor);
-                if (isExplicitCheckout || visitor.status === 'checked-in') {
+                // 1. If pass is ALREADY checked out, BLOCK any further checkout and give warning
+                if (visitor.status === 'checked-out') {
+                    const outTimeFormatted = visitor.checkOutTime 
+                        ? new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                        : '';
+                    setScanStatus('error');
+                    setMessage(`Notice: Pass already checked out (${visitor.name}${outTimeFormatted ? ` at ${outTimeFormatted}` : ''}). QR expired.`);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { visitor, action: 'already-checked-out', timestamp: visitor.checkOutTime || new Date().toISOString() } 
+                    }));
+                } else if (isExplicitCheckout || visitor.status === 'checked-in') {
                     // Check Out
                     const checkOutTime = new Date().toISOString();
                     await db.visitors.update(visitorId, {
@@ -72,14 +82,6 @@ export default function QRScanner() {
                     setMessage(`Checked IN: ${visitor.name}`);
                     window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
                         detail: { visitor, action: 'checkin', timestamp: checkInTime } 
-                    }));
-                    
-                } else if (visitor.status === 'checked-out') {
-                    // Notice: Already checked out
-                    setScanStatus('error');
-                    setMessage(`Notice: Pass expired / already checked out (${visitor.name})`);
-                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
-                        detail: { visitor, action: 'already-checked-out', timestamp: visitor.checkOutTime } 
                     }));
                 }
             } else {
