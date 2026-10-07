@@ -34,6 +34,15 @@ CREATE TABLE public.users (
 -- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "extraMembersCount" INTEGER DEFAULT 0;
 -- ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS "extraMembersIds" TEXT;
 
+-- REMOVE UNIQUE CONSTRAINT FROM VISITOR BADGE NUMBER (Allows reusing badge numbers across visitors):
+-- ALTER TABLE public.visitors DROP CONSTRAINT IF EXISTS visitors_visitorNo_key;
+-- ALTER TABLE public.visitors DROP CONSTRAINT IF EXISTS visitors_visitor_no_key;
+-- ALTER TABLE public.visitors DROP CONSTRAINT IF EXISTS visitors_badge_number_key;
+-- ALTER TABLE public.visitors DROP CONSTRAINT IF EXISTS visitors_badge_key;
+-- DROP INDEX IF EXISTS idx_visitors_visitorNo;
+-- DROP INDEX IF EXISTS idx_visitors_visitor_no;
+-- DROP INDEX IF EXISTS idx_visitors_badge_number;
+
 -- 2.2 VISITORS TABLE (All registered & active visitors)
 CREATE TABLE public.visitors (
     id TEXT PRIMARY KEY,                       -- e.g. 'VIS-20260930-0001'

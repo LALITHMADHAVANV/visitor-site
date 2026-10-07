@@ -130,12 +130,28 @@ export const db = {
             if (error) throw error;
         },
         where(field) {
-            // Simplified mock query builder for backward compatibility
+            // Flexible query builder supporting direct await, .first(), and .toArray()
             return {
-                equals: async (value) => {
-                    const { data, error } = await supabase.from('visitors').select('*').eq(field, value);
-                    if (error) throw error;
-                    return (data || []).map(normalizeVisitor);
+                equals: (value) => {
+                    const fetchQuery = async () => {
+                        const { data, error } = await supabase
+                            .from('visitors')
+                            .select('*')
+                            .eq(field, value)
+                            .order('created_at', { ascending: false });
+                        if (error) throw error;
+                        return (data || []).map(normalizeVisitor);
+                    };
+
+                    const promise = fetchQuery();
+                    promise.first = async () => {
+                        const items = await fetchQuery();
+                        return items.find(v => v.status === 'checked-in') || items[0] || null;
+                    };
+                    promise.toArray = async () => {
+                        return await fetchQuery();
+                    };
+                    return promise;
                 },
                 startsWith: {
                     toArray: async (value) => {

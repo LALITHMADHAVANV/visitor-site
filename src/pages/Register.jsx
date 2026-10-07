@@ -312,14 +312,17 @@ export default function Register({ isKiosk = false }) {
         setSubmitting(true);
         
         try {
-            const visitorId = (formData.visitorNo && formData.visitorNo.trim()) || await generateVisitorId();
+            // Generate a unique visit ID for primary key and QR pass
+            const uniqueVisitId = await generateVisitorId();
+            // Visitor badge number can be reused across visits/days (non-unique) or defaults to unique visit ID
+            const badgeNo = (formData.visitorNo && formData.visitorNo.trim()) || uniqueVisitId;
             
             const isSecurityEntry = !isKiosk;
             const now = new Date().toISOString();
             
             const visitor = {
-                id: visitorId,
-                visitorNo: visitorId,
+                id: uniqueVisitId,
+                visitorNo: badgeNo,
                 name: formData.name.trim(),
                 phone: phoneDigits,
                 company: formData.company.trim(),
@@ -332,7 +335,7 @@ export default function Register({ isKiosk = false }) {
                 extraMembersIds: formData.hasExtraMembers === 'yes' ? formData.extraMembersIds.trim() : null,
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
-                photoData: photoData || generateNameAvatar(formData.name.trim() || visitorId),
+                photoData: photoData || generateNameAvatar(formData.name.trim() || badgeNo),
                 status: isSecurityEntry ? 'checked-in' : 'registered',
                 checkInTime: isSecurityEntry ? now : null,
                 checkOutTime: null,
@@ -358,7 +361,7 @@ export default function Register({ isKiosk = false }) {
             }
             
             setRegisteredVisitor(visitor);
-            setSuccessQR(visitorId);
+            setSuccessQR(uniqueVisitId);
             
         } catch (error) {
             console.error("Registration Error:", error);
