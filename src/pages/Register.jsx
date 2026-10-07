@@ -8,6 +8,7 @@ import { supabase } from '../supabaseClient';
 import { OFFICE_HOSTS } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { generateNameAvatar } from '../avatarUtils';
+import { sendTelegramMessage } from '../telegram';
 import './Register.css';
 
 const getIdValidation = (type, val) => {
@@ -313,6 +314,9 @@ export default function Register({ isKiosk = false }) {
         try {
             const visitorId = (formData.visitorNo && formData.visitorNo.trim()) || await generateVisitorId();
             
+            const isSecurityEntry = !isKiosk;
+            const now = new Date().toISOString();
+            
             const visitor = {
                 id: visitorId,
                 visitorNo: visitorId,
@@ -329,8 +333,8 @@ export default function Register({ isKiosk = false }) {
                 hostName: formData.hostName.trim(),
                 purpose: formData.purpose.trim(),
                 photoData: photoData || generateNameAvatar(formData.name.trim() || visitorId),
-                status: 'registered',
-                checkInTime: null,
+                status: isSecurityEntry ? 'checked-in' : 'registered',
+                checkInTime: isSecurityEntry ? now : null,
                 checkOutTime: null,
                 auth_pin: null
             };
@@ -339,6 +343,18 @@ export default function Register({ isKiosk = false }) {
             
             if (location.state?.preregData?.id) {
                 await db.preregistered.update(location.state.preregData.id, { status: 'arrived' });
+            }
+
+            // If registered from security desk (New Visitor nav bar section), visitor is checked in immediately
+            if (isSecurityEntry) {
+                sendTelegramMessage(visitor).catch(err => console.error("Telegram alert error:", err));
+                window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                    detail: { 
+                        visitor, 
+                        action: 'checkin', 
+                        timestamp: now 
+                    } 
+                }));
             }
             
             setRegisteredVisitor(visitor);
@@ -479,7 +495,7 @@ export default function Register({ isKiosk = false }) {
                                 <div><strong>Phone:</strong> {registeredVisitor.phone || 'N/A'}</div>
                                 <div><strong>Vehicle:</strong> <span style={{ fontWeight: '600', color: registeredVisitor.vehicleNo && registeredVisitor.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{registeredVisitor.vehicleNo || 'No'}</span></div>
                                 <div><strong>Extra Members:</strong> <span style={{ fontWeight: '600', color: registeredVisitor.hasExtraMembers === 'yes' ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>{registeredVisitor.hasExtraMembers === 'yes' ? `${registeredVisitor.extraMembersCount} (${registeredVisitor.extraMembersIds || 'IDs recorded'})` : 'No'}</span></div>
-                                <div><strong>Time:</strong> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                <div><strong>Check-In Time:</strong> {registeredVisitor.checkInTime ? new Date(registeredVisitor.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                 {registeredVisitor.idType && (
                                     <div>
                                         <strong>ID ({registeredVisitor.idType}):</strong> <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>{registeredVisitor.idNumber || 'Recorded'}</span>
@@ -489,11 +505,11 @@ export default function Register({ isKiosk = false }) {
                         </div>
                     </div>
 
-                    {/* Check-In QR Code for Visitor to Scan */}
+                    {/* Check-Out / Exit QR Code */}
                     <div className="visitor-summary-qr-section">
                         <div className="visitor-summary-qr-box">
                             <QRCodeSVG 
-                                value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkin`} 
+                                value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkout`} 
                                 size={160} 
                                 level="H"
                                 imageSettings={{
@@ -505,7 +521,7 @@ export default function Register({ isKiosk = false }) {
                             />
                         </div>
                         <p className="qr-hint-text">
-                            Scan QR with mobile camera to check in
+                            Exit / Check-Out QR Code (Scan upon departure)
                         </p>
                     </div>
 
@@ -513,7 +529,7 @@ export default function Register({ isKiosk = false }) {
                     <div className="telegram-alert-banner">
                         <i className="fa-brands fa-telegram"></i>
                         <div>
-                            An arrival notification will be sent to <strong>{registeredVisitor.hostName}</strong> via Telegram upon scanning the Check-In QR.
+                            Arrival notification sent to <strong>{registeredVisitor.hostName}</strong> via Telegram.
                         </div>
                     </div>
 
