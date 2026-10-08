@@ -4,7 +4,7 @@ const avatarCache = new Map();
  * Generates an avatar image data URL (PNG) based on a person's name.
  * Extracts clean initials and draws them on an aesthetically pleasing gradient canvas.
  */
-export function generateNameAvatar(name, size = 256) {
+export function generateNameAvatar(name, size = 128) {
     if (typeof document === 'undefined') return null;
 
     const rawName = (name || '').trim();
@@ -88,7 +88,8 @@ export function generateNameAvatar(name, size = 256) {
         // Center text visually
         ctx.fillText(initials, size / 2, size / 2 + Math.round(size * 0.02));
 
-        const dataUrl = canvas.toDataURL('image/png');
+        // Export as lightweight JPEG (~2.5KB) instead of heavy PNG (~95KB)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
         avatarCache.set(cacheKey, dataUrl);
         return dataUrl;
     } catch (e) {

@@ -119,8 +119,35 @@ export default function Register({ isKiosk = false }) {
 
 
     const capture = useCallback(() => {
-        const imageSrc = webcamRef.current.getScreenshot();
-        setPhotoData(imageSrc);
+        const imageSrc = webcamRef.current?.getScreenshot();
+        if (!imageSrc) return;
+
+        // Auto-compress captured photo to lightweight 160x160 thumbnail (~5KB)
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 160;
+            let w = img.width;
+            let h = img.height;
+            if (w > h) {
+                if (w > maxDim) {
+                    h = Math.round((h * maxDim) / w);
+                    w = maxDim;
+                }
+            } else {
+                if (h > maxDim) {
+                    w = Math.round((w * maxDim) / h);
+                    h = maxDim;
+                }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            setPhotoData(compressed);
+        };
+        img.src = imageSrc;
     }, [webcamRef]);
 
     const retake = () => {
