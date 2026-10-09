@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",
-    "@supabase/supabase-js": "^2.112.4",
     "@yudiel/react-qr-scanner": "^2.6.0",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "firebase": "^12.18.0",
+    "mongodb": "^7.7.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -36,4 +36,3 @@
     "protobufjs": true
   }
 }
-

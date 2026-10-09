@@ -135,11 +135,11 @@ function useEnhancedThermalPhoto(src) {
 }
 
 const Badge = React.forwardRef(({ visitor }, ref) => {
-    if (!visitor) return null;
-
-    const nameAvatar = generateNameAvatar(visitor.name || visitor.visitorNo || visitor.id || 'Visitor');
-    const rawPhoto = visitor.photoData || visitor.photo || visitor.photoUrl || nameAvatar;
+    const nameAvatar = visitor ? generateNameAvatar(visitor.name || visitor.visitorNo || visitor.id || 'Visitor') : '';
+    const rawPhoto = visitor ? (visitor.photoData || visitor.photo || visitor.photoUrl || nameAvatar) : null;
     const enhancedPhoto = useEnhancedThermalPhoto(rawPhoto);
+
+    if (!visitor) return null;
 
     const getCleanOrigin = () => {
         if (typeof window === 'undefined') return '';

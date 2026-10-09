@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useReactToPrint } from 'react-to-print';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
-import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { getVisitorPhoto } from '../avatarUtils';
@@ -42,19 +41,6 @@ export default function Dashboard() {
     useEffect(() => {
         fetchDashboardData();
 
-        // Supabase Realtime updates
-        let channel;
-        try {
-            channel = supabase
-                .channel('dashboard-realtime')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'visitors' }, () => {
-                    fetchDashboardData();
-                })
-                .subscribe();
-        } catch (e) {
-            console.error("Realtime subscription error on dashboard:", e);
-        }
-
         // Real-time updates from hardware barcode/QR scanner or camera scanner
         const handleScanProcessed = async (event) => {
             fetchDashboardData();
@@ -82,7 +68,6 @@ export default function Dashboard() {
         return () => {
             clearInterval(interval);
             window.removeEventListener('visitor-scan-processed', handleScanProcessed);
-            if (channel) supabase.removeChannel(channel);
         };
     }, [fetchDashboardData]);
 

@@ -1,13 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.VITE_SUPABASE_ANON_KEY
-);
+import { getCollection } from './_db.js';
 
 const TELEGRAM_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN;
 
 async function sendReply(chatId, text) {
+    if (!TELEGRAM_TOKEN) return;
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -23,7 +19,7 @@ export default async function handler(req, res) {
 
     try {
         const update = req.body;
-        const message = update.message;
+        const message = update?.message;
 
         if (!message || !message.text) {
             return res.status(200).json({ ok: true });
@@ -33,6 +29,8 @@ export default async function handler(req, res) {
         const text = message.text.trim();
         const username = message.from?.username || '';
         const firstName = message.from?.first_name || '';
+
+        const hostsCollection = await getCollection('hosts');
 
         // Handle /start command with host name parameter
         if (text.startsWith('/start')) {
@@ -49,25 +47,27 @@ export default async function handler(req, res) {
             // Extract host name: replace underscores with spaces, uppercase
             const hostName = parts.slice(1).join(' ').replace(/_/g, ' ').toUpperCase();
 
-            // Upsert into hosts table (update if already registered)
-            const { error } = await supabase
-                .from('hosts')
-                .upsert(
+            try {
+                // Upsert into hosts collection in MongoDB
+                await hostsCollection.updateOne(
+                    { name: { $regex: `^${hostName}$`, $options: 'i' } },
                     {
-                        name: hostName,
-                        chat_id: chatId,
-                        telegram_username: username
+                        $set: {
+                            name: hostName,
+                            chat_id: chatId,
+                            telegram_username: username,
+                            registered_at: new Date().toISOString()
+                        }
                     },
-                    { onConflict: 'name' }
+                    { upsert: true }
                 );
 
-            if (error) {
-                console.error('Supabase upsert error:', error);
-                await sendReply(chatId, '❌ Registration failed. Please try again or contact your admin.');
-            } else {
                 await sendReply(chatId,
                     `✅ *Registration Successful!*\n\nHello *${firstName || hostName}*,\nYou are now registered as *${hostName}*.\n\n📬 You will receive *private visitor arrival alerts* directly in this chat.\n\nNo further action needed!`
                 );
+            } catch (err) {
+                console.error('MongoDB hosts upsert error:', err);
+                await sendReply(chatId, '❌ Registration failed. Please try again or contact your admin.');
             }
 
             return res.status(200).json({ ok: true });
@@ -75,15 +75,12 @@ export default async function handler(req, res) {
 
         // Handle /status command — let host check their registration
         if (text.startsWith('/status')) {
-            const { data } = await supabase
-                .from('hosts')
-                .select('name, registered_at')
-                .eq('chat_id', chatId)
-                .single();
+            const host = await hostsCollection.findOne({ chat_id: chatId });
 
-            if (data) {
+            if (host) {
+                const regDate = host.registered_at ? new Date(host.registered_at).toLocaleDateString() : 'Unknown';
                 await sendReply(chatId,
-                    `📋 *Your Registration*\n\nName: *${data.name}*\nRegistered: ${new Date(data.registered_at).toLocaleDateString()}\n\n✅ You will receive private visitor alerts.`
+                    `📋 *Your Registration*\n\nName: *${host.name}*\nRegistered: ${regDate}\n\n✅ You will receive private visitor alerts.`
                 );
             } else {
                 await sendReply(chatId,

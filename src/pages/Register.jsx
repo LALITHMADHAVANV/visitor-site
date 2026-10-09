@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
-import { supabase } from '../supabaseClient';
 import { OFFICE_HOSTS } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { generateNameAvatar } from '../avatarUtils';
@@ -20,8 +19,8 @@ const getIdValidation = (type, val) => {
         case 'Aadhar Number': {
             const isValid = trimmed.length === 12;
             const badgeText = `${trimmed.length}/12 Digits`;
-            const errorHint = trimmed.length > 0 && trimmed.length < 12 
-                ? `Must be exactly 12 digits (${12 - trimmed.length} more needed)` 
+            const errorHint = trimmed.length > 0 && trimmed.length < 12
+                ? `Must be exactly 12 digits (${12 - trimmed.length} more needed)`
                 : '';
             return { isValid, badgeText, errorHint, maxLen: 12 };
         }
@@ -52,16 +51,16 @@ const getIdValidation = (type, val) => {
         case 'Voter ID': {
             const isValid = trimmed.length === 10;
             const badgeText = `${trimmed.length}/10 Chars`;
-            const errorHint = trimmed.length > 0 && trimmed.length < 10 
-                ? `Must be 10 characters (${10 - trimmed.length} more needed)` 
+            const errorHint = trimmed.length > 0 && trimmed.length < 10
+                ? `Must be 10 characters (${10 - trimmed.length} more needed)`
                 : '';
             return { isValid, badgeText, errorHint, maxLen: 10 };
         }
         case 'Driving License': {
             const isValid = trimmed.length >= 10;
             const badgeText = `${trimmed.length} Chars`;
-            const errorHint = trimmed.length > 0 && trimmed.length < 10 
-                ? `Minimum 10 characters required (${10 - trimmed.length} more needed)` 
+            const errorHint = trimmed.length > 0 && trimmed.length < 10
+                ? `Minimum 10 characters required (${10 - trimmed.length} more needed)`
                 : '';
             return { isValid, badgeText, errorHint, maxLen: 16 };
         }
@@ -85,7 +84,7 @@ export default function Register({ isKiosk = false }) {
     const badgeRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     const [photoData, setPhotoData] = useState(null);
     const [successQR, setSuccessQR] = useState(null);
     const [registeredVisitor, setRegisteredVisitor] = useState(null);
@@ -302,9 +301,9 @@ export default function Register({ isKiosk = false }) {
         // 3. Duplicate check for active visits (Phone Number and ID Proof Number)
         try {
             const allVisitors = await db.visitors.toArray();
-            const activeVisitor = allVisitors.find(v => 
+            const activeVisitor = allVisitors.find(v =>
                 v.status === 'checked-in' && (
-                    v.phone === phoneDigits || 
+                    v.phone === phoneDigits ||
                     (v.idNumber && v.idNumber.trim().toUpperCase() === idNumberTrimmed.toUpperCase())
                 )
             );
@@ -337,16 +336,16 @@ export default function Register({ isKiosk = false }) {
         }
 
         setSubmitting(true);
-        
+
         try {
             // Generate a unique visit ID for primary key and QR pass
             const uniqueVisitId = await generateVisitorId();
             // Visitor badge number can be reused across visits/days (non-unique) or defaults to unique visit ID
             const badgeNo = (formData.visitorNo && formData.visitorNo.trim()) || uniqueVisitId;
-            
+
             const isSecurityEntry = !isKiosk;
             const now = new Date().toISOString();
-            
+
             const visitor = {
                 id: uniqueVisitId,
                 visitorNo: badgeNo,
@@ -368,9 +367,9 @@ export default function Register({ isKiosk = false }) {
                 checkOutTime: null,
                 auth_pin: null
             };
-            
+
             await db.visitors.add(visitor);
-            
+
             if (location.state?.preregData?.id) {
                 await db.preregistered.update(location.state.preregData.id, { status: 'arrived' });
             }
@@ -378,18 +377,18 @@ export default function Register({ isKiosk = false }) {
             // If registered from security desk (New Visitor nav bar section), visitor is checked in immediately
             if (isSecurityEntry) {
                 sendTelegramMessage(visitor).catch(err => console.error("Telegram alert error:", err));
-                window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
-                    detail: { 
-                        visitor, 
-                        action: 'checkin', 
-                        timestamp: now 
-                    } 
+                window.dispatchEvent(new CustomEvent('visitor-scan-processed', {
+                    detail: {
+                        visitor,
+                        action: 'checkin',
+                        timestamp: now
+                    }
                 }));
             }
-            
+
             setRegisteredVisitor(visitor);
             setSuccessQR(uniqueVisitId);
-            
+
         } catch (error) {
             console.error("Registration Error:", error);
             alert("Error saving visitor data: " + (error.message || JSON.stringify(error)));
@@ -428,7 +427,7 @@ export default function Register({ isKiosk = false }) {
     // Auto-poll & Realtime listener for visitor status while QR is displayed on Kiosk
     useEffect(() => {
         if (!successQR) return;
-        
+
         // Reset state for new visitor QR display
         setVisitorStatus('registered');
 
@@ -449,28 +448,10 @@ export default function Register({ isKiosk = false }) {
 
         // 1. Initial check & fast interval polling
         checkStatus();
-        const interval = setInterval(checkStatus, 90);
-
-        // 2. Supabase Realtime WebSocket listener for instant push update
-        let channel;
-        try {
-            channel = supabase
-                .channel(`kiosk-visitor-${successQR}`)
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitors', filter: `id=eq.${successQR}` }, (payload) => {
-                    if (payload.new && payload.new.status) {
-                        const newStatus = payload.new.status.trim();
-                        console.log("Realtime status push received:", newStatus);
-                        setVisitorStatus(newStatus);
-                    }
-                })
-                .subscribe();
-        } catch (e) {
-            console.error("Realtime subscription error:", e);
-        }
+        const interval = setInterval(checkStatus, 900);
 
         return () => {
             clearInterval(interval);
-            if (channel) supabase.removeChannel(channel);
         };
     }, [successQR]);
 
@@ -538,9 +519,9 @@ export default function Register({ isKiosk = false }) {
                     {/* Check-Out / Exit QR Code */}
                     <div className="visitor-summary-qr-section">
                         <div className="visitor-summary-qr-box">
-                            <QRCodeSVG 
-                                value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkout`} 
-                                size={160} 
+                            <QRCodeSVG
+                                value={`${getCleanOrigin()}/mobile-action?id=${registeredVisitor.id}&action=checkout`}
+                                size={160}
                                 level="H"
                                 imageSettings={{
                                     src: '/company-logo.png',
@@ -565,28 +546,28 @@ export default function Register({ isKiosk = false }) {
 
                     {/* Action Buttons */}
                     <div className="registered-actions">
-                        <button 
-                            type="button" 
-                            className="btn btn-primary btn-print-badge" 
+                        <button
+                            type="button"
+                            className="btn btn-primary btn-print-badge"
                             onClick={handlePrint}
                         >
                             <i className="fa-solid fa-print"></i>
                             Print Visitor Badge
                         </button>
-                        
+
                         <div className="registered-sub-actions">
-                            <button 
-                                type="button" 
-                                className="btn btn-secondary" 
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
                                 onClick={handleNextVisitor}
                             >
                                 <i className="fa-solid fa-user-plus"></i>
                                 Next Visitor
                             </button>
 
-                            <button 
-                                type="button" 
-                                className="btn btn-outline" 
+                            <button
+                                type="button"
+                                className="btn btn-outline"
                                 onClick={() => navigate('/dashboard')}
                             >
                                 <i className="fa-solid fa-chart-line"></i>
@@ -604,7 +585,7 @@ export default function Register({ isKiosk = false }) {
         const cleanOrigin = getCleanOrigin();
         const qrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkin`;
         const exitQrUrl = `${cleanOrigin}/mobile-action?id=${successQR}&action=checkout`;
-        
+
         return (
             <section className="view-section active">
                 <Badge ref={badgeRef} visitor={registeredVisitor} />
@@ -616,11 +597,11 @@ export default function Register({ isKiosk = false }) {
                             <p className="kiosk-instruction-text">
                                 Scan this <strong>Check-In QR Code</strong> at the security desk to check in.
                             </p>
-                            
+
                             <div className="kiosk-qr-wrapper">
-                                <QRCodeSVG 
-                                    value={qrUrl} 
-                                    size={220} 
+                                <QRCodeSVG
+                                    value={qrUrl}
+                                    size={220}
                                     level="H"
                                     imageSettings={{
                                         src: '/company-logo.png',
@@ -630,7 +611,7 @@ export default function Register({ isKiosk = false }) {
                                     }}
                                 />
                             </div>
-                            
+
                             <p className="kiosk-id-display">
                                 ID: {successQR}
                             </p>
@@ -650,11 +631,11 @@ export default function Register({ isKiosk = false }) {
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', marginBottom: '16px' }}>
                                     When you finish your visit, present this <strong>Exit QR Code</strong> at the security desk:
                                 </p>
-                                
+
                                 <div className="kiosk-qr-wrapper-sm">
-                                    <QRCodeSVG 
-                                        value={exitQrUrl} 
-                                        size={190} 
+                                    <QRCodeSVG
+                                        value={exitQrUrl}
+                                        size={190}
                                         level="H"
                                         imageSettings={{
                                             src: '/company-logo.png',
@@ -733,9 +714,9 @@ export default function Register({ isKiosk = false }) {
                                             <i className="fa-solid fa-camera"></i> Capture Photo
                                         </button>
                                         {formData.name.trim() && (
-                                            <button 
-                                                type="button" 
-                                                className="btn btn-secondary" 
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
                                                 style={{ fontSize: '13px', padding: '9px 14px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                                                 onClick={() => setPhotoData(generateNameAvatar(formData.name))}
                                                 title="Generate personalized avatar from name"
@@ -751,29 +732,29 @@ export default function Register({ isKiosk = false }) {
                                 )}
                             </div>
                         </div>
-                        
+
                         {/* Form Fields */}
                         <div className="fields-section">
-                            {/* Row 1: Visitor No & Full Name */}
+                            {/* Row 1: Visitor ID & Full Name */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span>
-                                            <i className="fa-solid fa-id-badge" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                            Visitor ID / Badge No
-                                        </span>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                            (Enter or click ↻ to generate)
-                                        </span>
+                                    <label className="form-label-header">
+                                        <div class="flex_d">
+                                            <span className="label-title">
+                                                <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
+                                                Visitor ID / Badge No
+                                            </span>
+                                            <span className="label-hint">(Click ↻ to generate)</span>
+                                        </div>
                                     </label>
-                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                        <input 
-                                            type="text" 
-                                            name="visitorNo" 
-                                            value={formData.visitorNo} 
-                                            onChange={handleChange} 
-                                            placeholder="Enter Visitor ID / Badge No"
-                                            style={{ paddingRight: '40px', fontFamily: 'monospace', fontWeight: 'bold' }} 
+                                    <div className="input-with-action">
+                                        <input
+                                            type="text"
+                                            name="visitorNo"
+                                            value={formData.visitorNo}
+                                            onChange={handleChange}
+                                            placeholder="Visitor ID / Badge No"
+                                            className="mono-bold-input"
                                         />
                                         <button
                                             type="button"
@@ -782,19 +763,7 @@ export default function Register({ isKiosk = false }) {
                                                 const newId = await generateVisitorId();
                                                 setFormData(prev => ({ ...prev, visitorNo: newId }));
                                             }}
-                                            style={{
-                                                position: 'absolute',
-                                                right: '8px',
-                                                background: 'transparent',
-                                                border: 'none',
-                                                color: 'var(--accent-primary)',
-                                                cursor: 'pointer',
-                                                padding: '6px',
-                                                fontSize: '14px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
+                                            className="btn-icon-action"
                                         >
                                             <i className="fa-solid fa-rotate"></i>
                                         </button>
@@ -802,7 +771,9 @@ export default function Register({ isKiosk = false }) {
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Full Name *</label>
+                                    <label className="form-label-header">
+                                        <span className="label-title">Full Name *</span>
+                                    </label>
                                     <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="John Doe" />
                                 </div>
                             </div>
@@ -810,30 +781,25 @@ export default function Register({ isKiosk = false }) {
                             {/* Row 2: Phone & Company */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span>Phone Number *</span>
-                                        <span style={{ 
-                                            fontSize: '11px', 
-                                            fontWeight: '600', 
-                                            color: formData.phone.length === 10 ? '#10b981' : '#f59e0b',
-                                            backgroundColor: formData.phone.length === 10 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px'
-                                        }}>
-                                            {formData.phone.length}/10 Digits
-                                        </span>
+                                    <label className="form-label-header">
+                                        <div class="flex_d">
+                                            <span className="label-title">Phone Number *</span>
+                                            <span className={`badge-count ${formData.phone.length === 10 ? 'badge-success' : 'badge-warning'}`}>
+                                                {formData.phone.length}/10 Digits
+                                            </span>
+                                        </div>
                                     </label>
                                     <div className="phone-input-row">
-                                        <input 
-                                            type="tel" 
-                                            name="phone" 
-                                            required 
+                                        <input
+                                            type="tel"
+                                            name="phone"
+                                            required
                                             inputMode="numeric"
                                             maxLength={10}
                                             pattern="[0-9]{10}"
-                                            value={formData.phone} 
-                                            onChange={(e) => { handleChange(e); setFindResult(null); }} 
-                                            placeholder="Enter 10-digit mobile number"
+                                            value={formData.phone}
+                                            onChange={(e) => { handleChange(e); setFindResult(null); }}
+                                            placeholder="10-digit mobile number"
                                             className="phone-number-input"
                                         />
                                         <button
@@ -851,39 +817,43 @@ export default function Register({ isKiosk = false }) {
                                         </button>
                                     </div>
                                     {formData.phone.length > 0 && formData.phone.length < 10 && (
-                                        <span style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'block' }}>
+                                        <span className="field-hint hint-warning">
                                             Must be exactly 10 digits ({10 - formData.phone.length} more needed)
                                         </span>
                                     )}
                                     {findResult === 'found' && (
-                                        <span style={{ fontSize: '12px', color: '#10b981', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600' }}>
-                                            <i className="fa-solid fa-circle-check"></i> Visitor found! Details auto-filled from previous visit.
+                                        <span className="field-hint hint-success">
+                                            <i className="fa-solid fa-circle-check"></i> Visitor found! Auto-filled details.
                                         </span>
                                     )}
                                     {findResult === 'not-found' && (
-                                        <span style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '500' }}>
-                                            <i className="fa-solid fa-circle-info"></i> No previous visit found. Please fill in the details.
+                                        <span className="field-hint hint-info">
+                                            <i className="fa-solid fa-circle-info"></i> No previous visit found.
                                         </span>
                                     )}
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Company Name</label>
+                                    <label className="form-label-header">
+                                        <span className="label-title">Company Name</span>
+                                    </label>
                                     <input type="text" name="company" value={formData.company} onChange={handleChange} placeholder="Acme Corp (Optional)" />
                                 </div>
                             </div>
 
-                            {/* Row 3: ID Proof Dropdown & ID Number Column */}
+                            {/* Row 3: ID Proof Dropdown & ID Number */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-address-card" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        ID Proof Type *
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-address-card" style={{ color: 'var(--accent-primary)' }}></i>
+                                            ID Proof Type *
+                                        </span>
                                     </label>
-                                    <select 
-                                        name="idType" 
+                                    <select
+                                        name="idType"
                                         required
-                                        value={formData.idType} 
+                                        value={formData.idType}
                                         onChange={handleChange}
                                         className="form-control"
                                     >
@@ -899,94 +869,126 @@ export default function Register({ isKiosk = false }) {
                                 </div>
 
                                 <div className="form-group">
-                                    <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span>
-                                            <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-hashtag" style={{ color: 'var(--accent-primary)' }}></i>
                                             ID Number *
                                         </span>
                                         {formData.idType && idValidation.badgeText && (
-                                            <span style={{ 
-                                                fontSize: '11px', 
-                                                fontWeight: '600', 
-                                                color: idValidation.isValid ? '#10b981' : '#f59e0b',
-                                                backgroundColor: idValidation.isValid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px'
-                                            }}>
+                                            <span className={`badge-count ${idValidation.isValid ? 'badge-success' : 'badge-warning'}`}>
                                                 {idValidation.badgeText}
                                             </span>
                                         )}
                                     </label>
-                                    <input 
-                                        type="text" 
-                                        name="idNumber" 
+                                    <input
+                                        type="text"
+                                        name="idNumber"
                                         required
-                                        value={formData.idNumber} 
-                                        onChange={handleChange} 
+                                        value={formData.idNumber}
+                                        onChange={handleChange}
                                         maxLength={idValidation.maxLen || undefined}
                                         placeholder={
-                                            formData.idType === 'Aadhar Number' ? 'Enter 12-digit Aadhar (e.g. 1234 5678 9012)' :
-                                            formData.idType === 'PAN Number' ? 'Enter 10-char PAN (e.g. ABCDE1234F)' :
-                                            formData.idType === 'Company ID' ? 'Enter Company EMP ID (e.g. EMP-9821)' :
-                                            formData.idType === 'Driving License' ? 'Enter DL number (e.g. DL-1420110012345)' :
-                                            formData.idType === 'Passport' ? 'Enter 8-char Passport (e.g. A1234567)' :
-                                            formData.idType === 'Voter ID' ? 'Enter 10-char Voter ID (e.g. ABC1234567)' :
-                                            (formData.idType ? 'Enter ID document number' : 'Select ID Type first')
-                                        } 
+                                            formData.idType === 'Aadhar Number' ? '12-digit Aadhar (e.g. 1234 5678 9012)' :
+                                                formData.idType === 'PAN Number' ? '10-char PAN (e.g. ABCDE1234F)' :
+                                                    formData.idType === 'Company ID' ? 'Company EMP ID (e.g. EMP-9821)' :
+                                                        formData.idType === 'Driving License' ? 'DL number (e.g. DL-1420110012345)' :
+                                                            formData.idType === 'Passport' ? '8-char Passport (e.g. A1234567)' :
+                                                                formData.idType === 'Voter ID' ? '10-char Voter ID (e.g. ABC1234567)' :
+                                                                    (formData.idType ? 'ID document number' : 'Select ID Type first')
+                                        }
                                     />
                                     {idValidation.errorHint && (
-                                        <span style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', display: 'block' }}>
+                                        <span className="field-hint hint-warning">
                                             {idValidation.errorHint}
                                         </span>
                                     )}
                                 </div>
                             </div>
-                            {/* Row 4: Vehicle Details (Placed immediately after ID Proof) */}
-                            <div className="form-row form-row-vehicle">
+
+                            {/* Row 4: Host & Vehicle Details */}
+                            <div className="form-row">
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-car" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        Vehicle Coming? *
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-user-tie" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Person to Meet / Host *
+                                        </span>
                                     </label>
                                     <select
-                                        name="hasVehicle"
-                                        value={formData.hasVehicle}
-                                        onChange={handleChange}
+                                        name="hostSelect"
+                                        required
+                                        value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === 'other') {
+                                                setFormData(prev => ({ ...prev, hostName: '' }));
+                                            } else {
+                                                setFormData(prev => ({ ...prev, hostName: val }));
+                                            }
+                                        }}
                                         className="form-control"
                                     >
-                                        <option value="no">No</option>
-                                        <option value="yes">Yes</option>
+                                        <option value="">-- Select Person to Meet --</option>
+                                        {OFFICE_HOSTS.map(h => (
+                                            <option key={h.name} value={h.name}>
+                                                {h.name} {h.department ? `(${h.department})` : ''}
+                                            </option>
+                                        ))}
+                                        <option value="other">Other (Type Custom Name)</option>
                                     </select>
+                                    {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
+                                        <input
+                                            type="text"
+                                            name="hostName"
+                                            required
+                                            value={formData.hostName}
+                                            onChange={handleChange}
+                                            placeholder="Type host or department name"
+                                            style={{ marginTop: '8px' }}
+                                        />
+                                    )}
                                 </div>
 
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-barcode" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        Vehicle Number {formData.hasVehicle === 'yes' ? '*' : ''}
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-car" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Vehicle Coming? *
+                                        </span>
                                     </label>
-                                    <input 
-                                        type="text" 
-                                        name="vehicleNo" 
-                                        value={formData.vehicleNo} 
-                                        onChange={handleChange} 
-                                        disabled={formData.hasVehicle === 'no'}
-                                        required={formData.hasVehicle === 'yes'}
-                                        placeholder={formData.hasVehicle === 'yes' ? 'e.g. TN-01-AB-1234' : 'Disabled (No Vehicle)'}
-                                        style={{
-                                            backgroundColor: formData.hasVehicle === 'no' ? 'rgba(255, 255, 255, 0.05)' : 'inherit',
-                                            cursor: formData.hasVehicle === 'no' ? 'not-allowed' : 'text',
-                                            opacity: formData.hasVehicle === 'no' ? 0.65 : 1
-                                        }}
-                                    />
+                                    <div className="vehicle-input-group">
+                                        <select
+                                            name="hasVehicle"
+                                            value={formData.hasVehicle}
+                                            onChange={handleChange}
+                                            className="form-control select-has-vehicle"
+                                        >
+                                            <option value="no">No Vehicle</option>
+                                            <option value="yes">Yes (Vehicle)</option>
+                                        </select>
+                                        {formData.hasVehicle === 'yes' && (
+                                            <input
+                                                type="text"
+                                                name="vehicleNo"
+                                                value={formData.vehicleNo}
+                                                onChange={handleChange}
+                                                required={formData.hasVehicle === 'yes'}
+                                                placeholder="e.g. TN-01-AB-1234"
+                                                className="input-vehicle-no"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Row 5: Extra Accompanying Members */}
-                            <div className={`form-row form-row-extra ${formData.hasExtraMembers === 'yes' ? 'has-extra' : ''}`}>
+                            {/* Row 5: Extra Accompanying Members & Purpose */}
+                            <div className="form-row">
                                 <div className="form-group">
-                                    <label>
-                                        <i className="fa-solid fa-users" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                        Extra Members? *
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-users" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Extra Members? *
+                                        </span>
                                     </label>
                                     <select
                                         name="hasExtraMembers"
@@ -994,94 +996,72 @@ export default function Register({ isKiosk = false }) {
                                         onChange={handleChange}
                                         className="form-control"
                                     >
-                                        <option value="no">No</option>
-                                        <option value="yes">Yes</option>
+                                        <option value="no">No Extra Members</option>
+                                        <option value="yes">Yes (Accompanying)</option>
                                     </select>
                                 </div>
 
-                                {formData.hasExtraMembers === 'yes' && (
-                                    <>
-                                        <div className="form-group">
-                                            <label>
-                                                <i className="fa-solid fa-hashtag" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                                No. of Members *
-                                            </label>
-                                            <input 
-                                                type="number" 
-                                                name="extraMembersCount" 
-                                                min="1" 
+                                {formData.hasExtraMembers === 'yes' ? (
+                                    <div className="form-group">
+                                        <label className="form-label-header">
+                                            <span className="label-title">
+                                                <i className="fa-solid fa-hashtag" style={{ color: 'var(--accent-primary)' }}></i>
+                                                Members & Pass IDs *
+                                            </span>
+                                        </label>
+                                        <div className="extra-members-inputs">
+                                            <input
+                                                type="number"
+                                                name="extraMembersCount"
+                                                min="1"
                                                 max="50"
-                                                required 
-                                                value={formData.extraMembersCount} 
-                                                onChange={handleChange} 
-                                                placeholder="e.g. 2" 
+                                                required
+                                                value={formData.extraMembersCount}
+                                                onChange={handleChange}
+                                                placeholder="Count"
+                                                className="input-extra-count"
+                                            />
+                                            <input
+                                                type="text"
+                                                name="extraMembersIds"
+                                                required
+                                                value={formData.extraMembersIds}
+                                                onChange={handleChange}
+                                                placeholder="Pass IDs (e.g. VIS-1002, VIS-1003)"
+                                                className="input-extra-ids"
                                             />
                                         </div>
-
-                                        <div className="form-group">
-                                            <label>
-                                                <i className="fa-solid fa-id-card-clip" style={{ marginRight: '6px', color: 'var(--accent-primary)' }}></i>
-                                                Accompanying Visitor IDs *
-                                            </label>
-                                            <input 
-                                                type="text" 
-                                                name="extraMembersIds" 
-                                                required 
-                                                value={formData.extraMembersIds} 
-                                                onChange={handleChange} 
-                                                placeholder="e.g. VIS-1002, VIS-1003" 
-                                            />
-                                        </div>
-                                    </>
+                                    </div>
+                                ) : (
+                                    <div className="form-group">
+                                        <label className="form-label-header">
+                                            <span className="label-title">
+                                                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--accent-primary)' }}></i>
+                                                Purpose of Visit *
+                                            </span>
+                                        </label>
+                                        <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
+                                    </div>
                                 )}
                             </div>
 
-                            {/* Host */}
-                            <div className="form-group">
-                                <label>Person to Meet / Host *</label>
-                                <select 
-                                    name="hostSelect" 
-                                    required 
-                                    value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')} 
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val === 'other') {
-                                            setFormData(prev => ({ ...prev, hostName: '' }));
-                                        } else {
-                                            setFormData(prev => ({ ...prev, hostName: val }));
-                                        }
-                                    }}
-                                    className="form-control"
-                                >
-                                    <option value="">-- Select Person to Meet --</option>
-                                    {OFFICE_HOSTS.map(h => (
-                                        <option key={h.name} value={h.name}>
-                                            {h.name} {h.department ? `(${h.department})` : ''}
-                                        </option>
-                                    ))}
-                                    <option value="other">Other (Type Custom Name)</option>
-                                </select>
-                                {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
-                                    <input 
-                                        type="text" 
-                                        name="hostName" 
-                                        required 
-                                        value={formData.hostName} 
-                                        onChange={handleChange} 
-                                        placeholder="Type host or department name" 
-                                        style={{ marginTop: '8px' }}
-                                    />
-                                )}
-                            </div>
-
-                            {/* Purpose */}
-                            <div className="form-group full-width">
-                                <label>Purpose of Visit *</label>
-                                <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
-                            </div>
+                            {/* Row 6: Purpose of Visit if Extra Members is active */}
+                            {formData.hasExtraMembers === 'yes' && (
+                                <div className="form-row">
+                                    <div className="form-group full-width">
+                                        <label className="form-label-header">
+                                            <span className="label-title">
+                                                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--accent-primary)' }}></i>
+                                                Purpose of Visit *
+                                            </span>
+                                        </label>
+                                        <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
-                    
+
                     <div className="form-actions mt-4">
                         <button type="submit" className="btn btn-primary btn-action-submit" disabled={submitting}>
                             {submitting ? (
