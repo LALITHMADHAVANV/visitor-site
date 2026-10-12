@@ -28,19 +28,19 @@ export default function Visitors() {
     const filteredVisitors = useMemo(() => {
         return visitors.filter(v => {
             const term = searchTerm.toLowerCase().trim();
-            const matchesSearch = !term || 
-                                  v.name?.toLowerCase().includes(term) || 
-                                  v.id?.toLowerCase().includes(term) ||
-                                  (v.visitorNo && v.visitorNo.toLowerCase().includes(term)) ||
-                                  (v.idNumber && v.idNumber.toLowerCase().includes(term)) ||
-                                  (v.idType && v.idType.toLowerCase().includes(term)) ||
-                                  (v.company && v.company.toLowerCase().includes(term)) ||
-                                  (v.phone && v.phone.includes(term)) ||
-                                  (v.extraMembersIds && v.extraMembersIds.toLowerCase().includes(term)) ||
-                                  (v.hostName && v.hostName.toLowerCase().includes(term));
-                                  
+            const matchesSearch = !term ||
+                v.name?.toLowerCase().includes(term) ||
+                v.id?.toLowerCase().includes(term) ||
+                (v.visitorNo && v.visitorNo.toLowerCase().includes(term)) ||
+                (v.idNumber && v.idNumber.toLowerCase().includes(term)) ||
+                (v.idType && v.idType.toLowerCase().includes(term)) ||
+                (v.company && v.company.toLowerCase().includes(term)) ||
+                (v.phone && v.phone.includes(term)) ||
+                (v.extraMembersIds && v.extraMembersIds.toLowerCase().includes(term)) ||
+                (v.hostName && v.hostName.toLowerCase().includes(term));
+
             const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
-            
+
             let matchesDate = true;
             if (filterDate) {
                 const time = v.checkInTime || v.created_at;
@@ -51,7 +51,7 @@ export default function Visitors() {
                     matchesDate = vDate === filterDate;
                 }
             }
-            
+
             return matchesSearch && matchesStatus && matchesDate;
         }).sort((a, b) => new Date(b.checkInTime || 0) - new Date(a.checkInTime || 0));
     }, [visitors, searchTerm, filterStatus, filterDate]);
@@ -74,11 +74,11 @@ export default function Visitors() {
             'Check-In Time': v.checkInTime ? new Date(v.checkInTime).toLocaleString() : '-',
             'Check-Out Time': v.checkOutTime ? new Date(v.checkOutTime).toLocaleString() : '-'
         }));
-        
+
         const worksheet = XLSX.utils.json_to_sheet(data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Visitors");
-        
+
         const dateStr = new Date().toISOString().split('T')[0];
         XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateStr}.xlsx`);
     };
@@ -86,8 +86,8 @@ export default function Visitors() {
     const formatDateTime = (isoString) => {
         if (!isoString) return '-';
         return new Date(isoString).toLocaleString([], {
-            month: 'short', day: 'numeric', 
-            hour: '2-digit', minute:'2-digit'
+            month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         });
     };
 
@@ -103,35 +103,35 @@ export default function Visitors() {
         <section className="visitors-history-page">
             <div className="glass-panel" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'hidden' }}>
                 {/* Search & Filters Toolbar */}
-                <div style={{ 
-                    padding: '16px 20px', 
+                <div style={{
+                    padding: '16px 20px',
                     borderBottom: '1px solid var(--border-subtle)',
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     flexWrap: 'wrap',
-                    gap: '14px' 
+                    gap: '14px'
                 }}>
                     <div style={{ display: 'flex', gap: '10px', flex: 1, minWidth: '320px', flexWrap: 'wrap' }}>
                         {/* Search Input */}
                         <div style={{ position: 'relative', flex: 1, minWidth: '240px', maxWidth: '380px' }}>
-                            <i className="fa-solid fa-search" style={{ 
-                                position: 'absolute', 
-                                left: '12px', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)', 
+                            <i className="fa-solid fa-search" style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
                                 color: 'var(--text-muted)',
                                 fontSize: '13px'
                             }}></i>
-                            <input 
-                                type="text" 
-                                placeholder="Search by name, ID, phone, company, host..." 
+                            <input
+                                type="text"
+                                placeholder="Search by name, ID, phone, company, host..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ 
-                                    width: '100%', 
-                                    padding: '8px 30px 8px 34px', 
-                                    border: '1px solid var(--border-color)', 
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 30px 8px 34px',
+                                    border: '1px solid var(--border-color)',
                                     borderRadius: '8px',
                                     fontSize: '13px',
                                     background: '#f8fafc',
@@ -139,7 +139,7 @@ export default function Visitors() {
                                 }}
                             />
                             {searchTerm && (
-                                <button 
+                                <button
                                     onClick={() => setSearchTerm('')}
                                     style={{
                                         position: 'absolute',
@@ -160,13 +160,13 @@ export default function Visitors() {
                         </div>
 
                         {/* Status Select */}
-                        <select 
-                            value={filterStatus} 
+                        <select
+                            value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            style={{ 
-                                border: '1px solid var(--border-color)', 
-                                borderRadius: '8px', 
-                                padding: '8px 14px', 
+                            style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                padding: '8px 14px',
                                 fontSize: '13px',
                                 background: '#f8fafc',
                                 color: 'var(--text-primary)',
@@ -180,14 +180,14 @@ export default function Visitors() {
                         </select>
 
                         {/* Date Filter */}
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
-                            style={{ 
-                                border: '1px solid var(--border-color)', 
-                                borderRadius: '8px', 
-                                padding: '8px 12px', 
+                            style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
                                 fontSize: '13px',
                                 background: '#f8fafc',
                                 color: 'var(--text-primary)',
@@ -196,7 +196,7 @@ export default function Visitors() {
                         />
 
                         {hasActiveFilters && (
-                            <button 
+                            <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={resetFilters}
                                 title="Reset all filters"
@@ -230,7 +230,7 @@ export default function Visitors() {
                                 <th>Visitor</th>
                                 <th style={{ textAlign: 'center' }}>Persons</th>
                                 <th>Phone</th>
-                                <th>ID Proof</th>
+                                {/* <th>ID Proof</th> */}
                                 <th>To Meet</th>
                                 <th>Vehicle</th>
                                 <th>Check-In</th>
@@ -246,8 +246,8 @@ export default function Visitors() {
                                             <i className="fa-regular fa-folder-open empty-state-icon"></i>
                                             <p>No visitor history records match your search criteria.</p>
                                             {hasActiveFilters && (
-                                                <button 
-                                                    className="btn btn-secondary btn-sm" 
+                                                <button
+                                                    className="btn btn-secondary btn-sm"
                                                     style={{ marginTop: '12px' }}
                                                     onClick={resetFilters}
                                                 >
@@ -263,8 +263,8 @@ export default function Visitors() {
                                     const totalPersons = 1 + extraCount;
                                     const rawExtraIds = v.extraMembersIds || '';
                                     const parsedIds = rawExtraIds ? rawExtraIds.split(/[,/;\n]+/).map(s => s.trim()).filter(Boolean) : [];
-                                    const accompanyingIds = parsedIds.length > 0 
-                                        ? parsedIds 
+                                    const accompanyingIds = parsedIds.length > 0
+                                        ? parsedIds
                                         : (extraCount > 0 ? Array.from({ length: extraCount }, (_, i) => `${v.visitorNo || v.id}-M${i + 1}`) : []);
 
                                     return (
@@ -294,10 +294,10 @@ export default function Visitors() {
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <img 
-                                                            src={getVisitorPhoto(v)} 
-                                                            className="avatar-sm" 
-                                                            alt={v.name} 
+                                                        <img
+                                                            src={getVisitorPhoto(v)}
+                                                            className="avatar-sm"
+                                                            alt={v.name}
                                                         />
                                                         <div>
                                                             <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{v.name}</strong>
@@ -314,8 +314,8 @@ export default function Visitors() {
                                                     </div>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
-                                                    <span style={{ 
-                                                        fontWeight: '700', 
+                                                    <span style={{
+                                                        fontWeight: '700',
                                                         fontSize: totalPersons > 1 ? '14px' : '12.5px',
                                                         color: totalPersons > 1 ? 'var(--primary)' : 'var(--text-secondary)',
                                                         display: 'block'
@@ -323,12 +323,12 @@ export default function Visitors() {
                                                         {totalPersons}
                                                     </span>
                                                     {extraCount > 0 ? (
-                                                        <span style={{ 
-                                                            fontSize: '9.5px', 
-                                                            background: '#e0f2fe', 
-                                                            color: '#0369a1', 
-                                                            padding: '1px 5px', 
-                                                            borderRadius: '4px', 
+                                                        <span style={{
+                                                            fontSize: '9.5px',
+                                                            background: '#e0f2fe',
+                                                            color: '#0369a1',
+                                                            padding: '1px 5px',
+                                                            borderRadius: '4px',
                                                             fontWeight: '600',
                                                             display: 'inline-block',
                                                             marginTop: '2px'
@@ -342,7 +342,7 @@ export default function Visitors() {
                                                 <td>
                                                     <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{v.phone || '-'}</span>
                                                 </td>
-                                                <td>
+                                                {/* <td>
                                                     {v.idType ? (
                                                         <div>
                                                             <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '600', display: 'block' }}>
@@ -355,7 +355,7 @@ export default function Visitors() {
                                                     ) : (
                                                         <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>
                                                     )}
-                                                </td>
+                                                </td> */}
                                                 <td>
                                                     <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{v.hostName}</div>
                                                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -391,11 +391,11 @@ export default function Visitors() {
                                                         ↳
                                                     </td>
                                                     <td>
-                                                        <span className="badge-id" style={{ 
-                                                            fontFamily: 'monospace', 
-                                                            fontSize: '11px', 
-                                                            background: '#eff6ff', 
-                                                            color: '#1d4ed8', 
+                                                        <span className="badge-id" style={{
+                                                            fontFamily: 'monospace',
+                                                            fontSize: '11px',
+                                                            background: '#eff6ff',
+                                                            color: '#1d4ed8',
                                                             border: '1px solid #bfdbfe',
                                                             fontWeight: '600'
                                                         }}>
