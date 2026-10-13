@@ -11,6 +11,8 @@ export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const badgeRef = useRef();
+    const scanDoneBtnRef = useRef(null);
+    const previewDoneBtnRef = useRef(null);
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [previewVisitor, setPreviewVisitor] = useState(null);
     const [scanPopup, setScanPopup] = useState(null); // { visitor, action: 'checkin' | 'checkout' | 'already-checked-out', timestamp }
@@ -158,22 +160,46 @@ export default function Dashboard() {
     };
 
     useEffect(() => {
+        if (scanPopup) {
+            const timer = setTimeout(() => scanDoneBtnRef.current?.focus(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [scanPopup]);
+
+    useEffect(() => {
+        if (previewVisitor) {
+            const timer = setTimeout(() => previewDoneBtnRef.current?.focus(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [previewVisitor]);
+
+    useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                if (scanPopup) setScanPopup(null);
-                if (previewVisitor) setPreviewVisitor(null);
-            } else if (e.key === 'Enter') {
                 if (scanPopup) {
                     e.preventDefault();
                     setScanPopup(null);
+                }
+                if (previewVisitor) {
+                    e.preventDefault();
+                    setPreviewVisitor(null);
+                }
+            } else if (e.key === 'Enter') {
+                // When checkin or checkout popup is open, Enter triggers Done and closes it
+                if (scanPopup) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setScanPopup(null);
                 } else if (previewVisitor) {
                     e.preventDefault();
+                    e.stopPropagation();
                     setPreviewVisitor(null);
                 }
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        // Use capture phase so Enter intercepts cleanly before active inputs or elements
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
     }, [scanPopup, previewVisitor]);
 
     // Filtered visitors according to search & active tab
@@ -360,15 +386,15 @@ export default function Dashboard() {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '32px', textAlign: 'center' }}>#</th>
-                                    <th style={{ width: '120px' }}>Visitor ID</th>
+                                    <th style={{ width: '26px', textAlign: 'center' }}>#</th>
+                                    <th style={{ width: '100px' }}>Visitor ID</th>
                                     <th>Visitor Details</th>
-                                    <th style={{ width: '55px', textAlign: 'center' }}>Persons</th>
+                                    <th style={{ width: '44px', textAlign: 'center' }}>Persons</th>
                                     <th>To Meet</th>
-                                    <th style={{ width: '85px' }}>Check In</th>
-                                    <th style={{ width: '85px' }}>Check Out</th>
-                                    <th style={{ width: '95px' }}>Status</th>
-                                    <th style={{ width: '115px', textAlign: 'right' }}>Actions</th>
+                                    <th style={{ width: '70px' }}>Check In</th>
+                                    <th style={{ width: '70px' }}>Check Out</th>
+                                    <th style={{ width: '76px' }}>Status</th>
+                                    <th style={{ width: '88px', textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -414,7 +440,7 @@ export default function Dashboard() {
                                         return (
                                         <React.Fragment key={v.id}>
                                             <tr>
-                                                <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '12px' }}>
+                                                <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '11px' }}>
                                                     {index + 1}
                                                 </td>
                                                 <td>
@@ -511,49 +537,50 @@ export default function Dashboard() {
                                                 </td>
                                                 <td>
                                                     <div style={{ fontWeight: '500' }}>{v.hostName}</div>
-                                                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{v.purpose || 'Visit'}</div>
+                                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{v.purpose || 'Visit'}</div>
                                                 </td>
                                                 <td>
-                                                    <div style={{ fontWeight: '600', fontSize: '13px' }}>{formatTime(v.checkInTime)}</div>
+                                                    <div style={{ fontWeight: '600', fontSize: '11px' }}>{formatTime(v.checkInTime)}</div>
                                                 </td>
                                                 <td>
                                                     {v.checkOutTime ? (
-                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
                                                             {formatTime(v.checkOutTime)}
                                                         </div>
                                                     ) : (
-                                                        <span style={{ color: 'var(--success)', fontWeight: '500', fontSize: '12px' }}>
+                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '10.5px' }}>
                                                             Active
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td>
                                                     <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '10px' }}></i>
+                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
                                                         {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                     </span>
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
-                                                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                                                        {v.status === 'checked-in' && (
-                                                            <button 
-                                                                className="btn btn-outline btn-sm"
-                                                                onClick={() => handleCheckout(v.id, v.name)}
-                                                                title="Check Out Visitor"
-                                                                style={{ color: '#dc2626', borderColor: '#fca5a5' }}
-                                                            >
-                                                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                                                                <span>Check Out</span>
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            className="btn btn-secondary btn-icon" 
-                                                            onClick={() => printBadge(v)} 
-                                                            title="Print Gate Pass / Badge"
-                                                        >
-                                                            <i className="fa-solid fa-print"></i>
-                                                        </button>
-                                                    </div>
+                                                    <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                                                         {v.status === 'checked-in' && (
+                                                             <button 
+                                                                 className="btn btn-outline btn-sm"
+                                                                 onClick={() => handleCheckout(v.id, v.name)}
+                                                                 title="Check Out Visitor"
+                                                                 style={{ color: '#dc2626', borderColor: '#fca5a5', padding: '2px 6px', fontSize: '10.5px', whiteSpace: 'nowrap' }}
+                                                             >
+                                                                 <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: '9.5px' }}></i>
+                                                                 <span>Out</span>
+                                                             </button>
+                                                         )}
+                                                         <button 
+                                                             className="btn btn-secondary btn-icon" 
+                                                             onClick={() => printBadge(v)} 
+                                                             title="Print Gate Pass / Badge"
+                                                             style={{ padding: '3px 6px', fontSize: '11px' }}
+                                                         >
+                                                             <i className="fa-solid fa-print"></i>
+                                                         </button>
+                                                     </div>
                                                 </td>
                                             </tr>
                                             {/* Accompanying Members Sub-rows: Show Visitor ID number only */}
@@ -799,10 +826,22 @@ export default function Dashboard() {
                                 </button>
                             )}
                             <button 
+                                ref={previewDoneBtnRef}
                                 className="btn btn-primary btn-sm"
                                 onClick={() => setPreviewVisitor(null)}
+                                title="Done (Enter / Esc to close)"
+                                autoFocus
                             >
-                                Close
+                                <i className="fa-solid fa-check" style={{ marginRight: '5px' }}></i>
+                                <span>Done</span>
+                                <span style={{ 
+                                    marginLeft: '6px', 
+                                    fontSize: '10px', 
+                                    background: 'rgba(255,255,255,0.25)', 
+                                    padding: '1px 5px', 
+                                    borderRadius: '3px',
+                                    fontWeight: '600'
+                                }}>↵ Enter</span>
                             </button>
                         </div>
                     </div>
@@ -1011,12 +1050,23 @@ export default function Dashboard() {
                                 </button>
                             )}
                             <button 
+                                ref={scanDoneBtnRef}
                                 className="btn btn-primary btn-sm"
                                 onClick={() => setScanPopup(null)}
-                                title="Close popup (Enter)"
+                                title="Done (Enter to close)"
+                                id="scan-popup-done-btn"
+                                autoFocus
                             >
-                                <i className="fa-solid fa-arrow-turn-down fa-rotate-90" style={{ fontSize: '11px', marginRight: '5px' }}></i>
-                                <span>Enter</span>
+                                <i className="fa-solid fa-check" style={{ marginRight: '5px' }}></i>
+                                <span>Done</span>
+                                <span style={{ 
+                                    marginLeft: '6px', 
+                                    fontSize: '10px', 
+                                    background: 'rgba(255,255,255,0.25)', 
+                                    padding: '1px 5px', 
+                                    borderRadius: '3px',
+                                    fontWeight: '600'
+                                }}>↵ Enter</span>
                             </button>
                         </div>
                     </div>

@@ -231,17 +231,17 @@ export default function Visitors() {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={{ width: '32px', textAlign: 'center' }}>#</th>
-                                <th style={{ width: '115px' }}>Visitor ID</th>
+                                <th style={{ width: '26px', textAlign: 'center' }}>#</th>
+                                <th style={{ width: '95px' }}>Visitor ID</th>
                                 <th>Visitor</th>
-                                <th style={{ width: '55px', textAlign: 'center' }}>Persons</th>
-                                <th style={{ width: '100px' }}>Phone</th>
-                                <th style={{ width: '115px' }}>ID Proof</th>
+                                <th style={{ width: '44px', textAlign: 'center' }}>Persons</th>
+                                <th style={{ width: '85px' }}>Phone</th>
+                                <th style={{ width: '95px' }}>ID Proof</th>
                                 <th>To Meet</th>
-                                <th style={{ width: '85px' }}>Vehicle</th>
-                                <th style={{ width: '85px' }}>Check-In</th>
-                                <th style={{ width: '85px' }}>Check-Out</th>
-                                <th style={{ width: '95px' }}>Status</th>
+                                <th style={{ width: '70px' }}>Vehicle</th>
+                                <th style={{ width: '70px' }}>Check-In</th>
+                                <th style={{ width: '70px' }}>Check-Out</th>
+                                <th style={{ width: '76px' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -276,11 +276,11 @@ export default function Visitors() {
                                     return (
                                         <React.Fragment key={v.id}>
                                             <tr>
-                                                <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                                <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '11px' }}>
                                                     {index + 1}
                                                 </td>
                                                 <td>
-                                                    <span className="badge-id" style={{ fontFamily: 'monospace', fontSize: '11.5px', fontWeight: '700' }}>
+                                                    <span className="badge-id" style={{ fontFamily: 'monospace', fontSize: '10.5px', fontWeight: '700' }}>
                                                         {v.visitorNo || v.id}
                                                     </span>
                                                     {extraCount > 0 && (
@@ -322,7 +322,7 @@ export default function Visitors() {
                                                 <td style={{ textAlign: 'center' }}>
                                                     <span style={{ 
                                                         fontWeight: '700', 
-                                                        fontSize: totalPersons > 1 ? '14px' : '12.5px',
+                                                        fontSize: totalPersons > 1 ? '13px' : '12px',
                                                         color: totalPersons > 1 ? 'var(--primary)' : 'var(--text-secondary)',
                                                         display: 'block'
                                                     }}>
@@ -346,7 +346,7 @@ export default function Visitors() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{v.phone || '-'}</span>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-primary)' }}>{v.phone || '-'}</span>
                                                 </td>
                                                 <td>
                                                     {v.idType ? (
@@ -369,7 +369,7 @@ export default function Visitors() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span style={{ fontSize: '12.5px', color: v.vehicleNo && v.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                    <span style={{ fontSize: '11px', color: v.vehicleNo && v.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                                                         {v.vehicleNo || 'No'}
                                                     </span>
                                                 </td>
