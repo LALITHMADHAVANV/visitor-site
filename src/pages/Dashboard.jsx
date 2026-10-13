@@ -3,6 +3,7 @@ import { useReactToPrint } from 'react-to-print';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
 import { useAuth } from '../AuthContext';
+import { fetchHosts, saveHost } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { getVisitorPhoto } from '../avatarUtils';
 import './Dashboard.css';
@@ -11,21 +12,42 @@ export default function Dashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const badgeRef = useRef();
+    const scanDoneBtnRef = useRef(null);
+    const previewDoneBtnRef = useRef(null);
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [previewVisitor, setPreviewVisitor] = useState(null);
     const [scanPopup, setScanPopup] = useState(null); // { visitor, action: 'checkin' | 'checkout' | 'already-checked-out', timestamp }
+    const [isEditingVisitor, setIsEditingVisitor] = useState(false);
+    const [editFormData, setEditFormData] = useState({});
+    const [hostList, setHostList] = useState([]);
+    const scanPopupOpenedAtRef = useRef(0);
+    const hasPrintedRef = useRef(false);
+    const isPrintingRef = useRef(false);
     const [allVisitors, setAllVisitors] = useState([]);
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'inside', 'checked-out'
     const [searchTerm, setSearchTerm] = useState('');
+
+    const handlePrintCompleted = useCallback(() => {
+        isPrintingRef.current = false;
+        hasPrintedRef.current = true;
+        // Direct navigation / focus straight to Done button after print option
+        setTimeout(() => {
+            scanDoneBtnRef.current?.focus();
+        }, 50);
+    }, []);
 
     const handlePrint = useReactToPrint({
         contentRef: badgeRef,
         documentTitle: selectedVisitor ? `Visitor_Badge_${selectedVisitor.id}` : 'Visitor_Badge',
         pageStyle: THERMAL_80MM_PAGE_STYLE,
+        onAfterPrint: () => {
+            handlePrintCompleted();
+        },
     });
 
     const printBadge = (visitor) => {
         setSelectedVisitor(visitor);
+        isPrintingRef.current = true;
         setTimeout(() => handlePrint(), 100);
     };
 
@@ -158,15 +180,176 @@ export default function Dashboard() {
     };
 
     useEffect(() => {
+        const handleBeforePrint = () => {
+            isPrintingRef.current = true;
+        };
+        const handleAfterPrint = () => {
+            handlePrintCompleted();
+        };
+
+        window.addEventListener('beforeprint', handleBeforePrint);
+        window.addEventListener('afterprint', handleAfterPrint);
+        window.addEventListener('visitor-print-completed', handlePrintCompleted);
+
+        return () => {
+            window.removeEventListener('beforeprint', handleBeforePrint);
+            window.removeEventListener('afterprint', handleAfterPrint);
+            window.removeEventListener('visitor-print-completed', handlePrintCompleted);
+        };
+    }, [handlePrintCompleted]);
+
+    // Fetch dynamic host suggestions on mount
+    useEffect(() => {
+        fetchHosts().then(hosts => {
+            if (Array.isArray(hosts)) setHostList(hosts);
+        }).catch(() => {});
+    }, []);
+
+    const handleStartEdit = () => {
+        if (!scanPopup || !scanPopup.visitor) return;
+        const v = scanPopup.visitor;
+        setEditFormData({
+            name: v.name || '',
+            phone: v.phone || '',
+            company: v.company || '',
+            hostName: v.hostName || '',
+            purpose: v.purpose || '',
+            vehicleNo: v.vehicleNo || '',
+            idType: v.idType || 'Aadhar Number',
+            idNumber: v.idNumber || '',
+            hasExtraMembers: v.hasExtraMembers || 'no',
+            extraMembersCount: v.extraMembersCount || 1,
+            extraMembersIds: v.extraMembersIds || ''
+        });
+        setIsEditingVisitor(true);
+    };
+
+    const handleSaveEdit = async (e) => {
+        if (e) e.preventDefault();
+        if (!scanPopup || !scanPopup.visitor) return;
+        const v = scanPopup.visitor;
+        if (!editFormData.name.trim()) {
+            alert('Visitor Name is required.');
+            return;
+        }
+
+        const updatedFields = {
+            name: editFormData.name.trim(),
+            phone: editFormData.phone.trim(),
+            company: editFormData.company.trim(),
+            hostName: editFormData.hostName.trim(),
+            purpose: editFormData.purpose.trim(),
+            vehicleNo: editFormData.vehicleNo.trim() || 'No',
+            idType: editFormData.idType,
+            idNumber: editFormData.idNumber.trim(),
+            hasExtraMembers: editFormData.hasExtraMembers,
+            extraMembersCount: editFormData.hasExtraMembers === 'yes' ? Number(editFormData.extraMembersCount) || 1 : 0,
+            extraMembersIds: editFormData.hasExtraMembers === 'yes' ? editFormData.extraMembersIds.trim() : ''
+        };
+
+        try {
+            await db.visitors.update(v.id, updatedFields);
+            if (updatedFields.hostName) {
+                saveHost(updatedFields.hostName).catch(() => {});
+            }
+            const updatedVisitor = await db.visitors.get(v.id);
+            const refreshed = updatedVisitor || { ...v, ...updatedFields };
+            setScanPopup(prev => prev ? { ...prev, visitor: refreshed } : null);
+            setIsEditingVisitor(false);
+            fetchDashboardData();
+        } catch (err) {
+            console.error('Failed to update visitor:', err);
+            alert('Failed to save visitor changes.');
+        }
+    };
+
+    const handleDone = useCallback(() => {
+        if (!scanPopup || !scanPopup.visitor) {
+            setScanPopup(null);
+            setIsEditingVisitor(false);
+            return;
+        }
+        const visitorToPrint = scanPopup.visitor;
+        const shouldPrint = scanPopup.action === 'checkin' || visitorToPrint.status === 'checked-in';
+        setScanPopup(null);
+        setIsEditingVisitor(false);
+        if (shouldPrint) {
+            printBadge(visitorToPrint);
+        }
+    }, [scanPopup]);
+
+    useEffect(() => {
+        if (!scanPopup) {
+            hasPrintedRef.current = false;
+            setIsEditingVisitor(false);
+            return;
+        }
+        scanPopupOpenedAtRef.current = Date.now();
+        hasPrintedRef.current = false;
+        setIsEditingVisitor(false);
+
+        // Direct navigation / focus straight to the Done button immediately
+        const timer = setTimeout(() => {
+            scanDoneBtnRef.current?.focus();
+        }, 50);
+
+        return () => clearTimeout(timer);
+    }, [scanPopup]);
+
+    useEffect(() => {
+        if (previewVisitor) {
+            const timer = setTimeout(() => previewDoneBtnRef.current?.focus(), 50);
+            return () => clearTimeout(timer);
+        }
+    }, [previewVisitor]);
+
+    useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                setPreviewVisitor(null);
-                setScanPopup(null);
+                if (scanPopup) {
+                    e.preventDefault();
+                    if (isEditingVisitor) {
+                        setIsEditingVisitor(false);
+                    } else {
+                        setScanPopup(null);
+                    }
+                }
+                if (previewVisitor) {
+                    e.preventDefault();
+                    setPreviewVisitor(null);
+                }
+            } else if (e.key === 'Enter') {
+                // If browser print dialog is actively open, do not intercept
+                if (isPrintingRef.current) {
+                    return;
+                }
+
+                // When scan popup is open:
+                if (scanPopup) {
+                    if (isEditingVisitor) {
+                        return; // Allow typing in input fields without closing popup
+                    }
+                    // Slight 300ms debounce for trailing barcode scanner enter if not yet printed
+                    const elapsed = Date.now() - scanPopupOpenedAtRef.current;
+                    if (!hasPrintedRef.current && elapsed < 300) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDone();
+                } else if (previewVisitor) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPreviewVisitor(null);
+                }
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+        // Use capture phase so Enter intercepts cleanly before active inputs or elements
+        window.addEventListener('keydown', handleKeyDown, true);
+        return () => window.removeEventListener('keydown', handleKeyDown, true);
+    }, [scanPopup, previewVisitor, isEditingVisitor, handleDone]);
 
     // Filtered visitors according to search & active tab
     const filteredVisitors = useMemo(() => {
@@ -272,7 +455,7 @@ export default function Dashboard() {
             </div>
 
             {/* Main Table Card */}
-            <div className="glass-panel dashboard-table-card mt-4">
+            <div className="glass-panel dashboard-table-card">
                 {/* Card Header & Controls */}
                 <div className="table-controls-bar">
                     <div className="controls-left">
@@ -349,18 +532,18 @@ export default function Dashboard() {
 
                 {/* Table Content */}
                 <div className="table-responsive">
-                        <table className="data-table">
+                        <table className="data-table" style={{ minWidth: '1050px' }}>
                             <thead>
                                 <tr>
-                                    <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-                                    <th>Visitor ID</th>
-                                    <th>Visitor Details</th>
-                                    <th style={{ textAlign: 'center' }}>Persons</th>
-                                    <th>To Meet</th>
-                                    <th>Check In</th>
-                                    <th>Check Out</th>
-                                    <th>Status</th>
-                                    <th style={{ textAlign: 'right' }}>Actions</th>
+                                    <th style={{ width: '3.5%', textAlign: 'center' }}>#</th>
+                                    <th style={{ width: '10.5%' }}>Visitor ID</th>
+                                    <th style={{ width: '22%' }}>Visitor Details</th>
+                                    <th style={{ width: '5.5%', textAlign: 'center' }}>Persons</th>
+                                    <th style={{ width: '15%' }}>To Meet</th>
+                                    <th style={{ width: '9.5%' }}>Check In</th>
+                                    <th style={{ width: '9.5%' }}>Check Out</th>
+                                    <th style={{ width: '9%' }}>Status</th>
+                                    <th style={{ width: '15.5%', textAlign: 'right', paddingRight: '14px' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -406,7 +589,7 @@ export default function Dashboard() {
                                         return (
                                         <React.Fragment key={v.id}>
                                             <tr>
-                                                <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '12px' }}>
+                                                <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: '600', fontSize: '11px' }}>
                                                     {index + 1}
                                                 </td>
                                                 <td>
@@ -449,25 +632,25 @@ export default function Dashboard() {
                                                                 <i className="fa-solid fa-magnifying-glass-plus"></i>
                                                             </div>
                                                         </div>
-                                                        <div>
+                                                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                                             <div 
-                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}
                                                                 onClick={() => setPreviewVisitor(v)}
                                                                 title="Touch / click to view visitor details"
                                                             >
-                                                                <span>{v.name}</span>
+                                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
                                                                 {isOldVisitor(v) ? (
                                                                     <span className="badge-tag-returning" title="Returning visitor (visited previously)">Old</span>
                                                                 ) : (
                                                                     <span className="badge-tag-new" title="First-time visitor">New</span>
                                                                 )}
                                                             </div>
-                                                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                                                                {v.company && <span>{v.company}</span>}
-                                                                {v.phone && <span>• {v.phone}</span>}
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {v.company && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.company}</span>}
+                                                                {v.phone && <span style={{ whiteSpace: 'nowrap' }}>• {v.phone}</span>}
                                                             </div>
                                                             {extraCount > 0 && (
-                                                                <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <div style={{ fontSize: '10.5px', color: '#2563eb', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                                                                     <i className="fa-solid fa-users" style={{ fontSize: '10px' }}></i>
                                                                     <span>Group ({totalPersons} persons)</span>
                                                                 </div>
@@ -478,7 +661,7 @@ export default function Dashboard() {
                                                 <td style={{ textAlign: 'center' }}>
                                                     <span style={{ 
                                                         fontWeight: '700', 
-                                                        fontSize: totalPersons > 1 ? '15px' : '13px',
+                                                        fontSize: totalPersons > 1 ? '14px' : '12.5px',
                                                         color: totalPersons > 1 ? 'var(--primary)' : 'var(--text-secondary)',
                                                         display: 'block'
                                                     }}>
@@ -486,66 +669,68 @@ export default function Dashboard() {
                                                     </span>
                                                     {extraCount > 0 ? (
                                                         <span style={{ 
-                                                            fontSize: '10px', 
-                                                            background: '#e0f2fe', 
-                                                            color: '#0369a1', 
-                                                            padding: '2px 5px', 
-                                                            borderRadius: '4px', 
-                                                            fontWeight: '600',
-                                                            display: 'inline-block',
-                                                            marginTop: '2px'
-                                                        }}>
-                                                            1 + {extraCount} Extra
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Single</span>
-                                                    )}
+                                                             fontSize: '9.5px', 
+                                                             background: '#e0f2fe', 
+                                                             color: '#0369a1', 
+                                                             padding: '1px 5px', 
+                                                             borderRadius: '3px', 
+                                                             fontWeight: '600',
+                                                             display: 'inline-block',
+                                                             marginTop: '2px',
+                                                             whiteSpace: 'nowrap'
+                                                         }}>
+                                                             1+{extraCount}
+                                                         </span>
+                                                     ) : (
+                                                         <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>Single</span>
+                                                     )}
                                                 </td>
-                                                <td>
-                                                    <div style={{ fontWeight: '500' }}>{v.hostName}</div>
-                                                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{v.purpose || 'Visit'}</div>
+                                                <td style={{ overflow: 'hidden' }}>
+                                                    <div style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.hostName}>{v.hostName}</div>
+                                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.purpose || 'Visit'}>{v.purpose || 'Visit'}</div>
                                                 </td>
-                                                <td>
-                                                    <div style={{ fontWeight: '600', fontSize: '13px' }}>{formatTime(v.checkInTime)}</div>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <div style={{ fontWeight: '600', fontSize: '11.5px', whiteSpace: 'nowrap' }}>{formatTime(v.checkInTime)}</div>
                                                 </td>
-                                                <td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
                                                     {v.checkOutTime ? (
-                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
                                                             {formatTime(v.checkOutTime)}
                                                         </div>
                                                     ) : (
-                                                        <span style={{ color: 'var(--success)', fontWeight: '500', fontSize: '12px' }}>
+                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                             Active
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td>
                                                     <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '10px' }}></i>
+                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
                                                         {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                     </span>
                                                 </td>
-                                                <td style={{ textAlign: 'right' }}>
-                                                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                                                        {v.status === 'checked-in' && (
-                                                            <button 
-                                                                className="btn btn-outline btn-sm"
-                                                                onClick={() => handleCheckout(v.id, v.name)}
-                                                                title="Check Out Visitor"
-                                                                style={{ color: '#dc2626', borderColor: '#fca5a5' }}
-                                                            >
-                                                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                                                                <span>Check Out</span>
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            className="btn btn-secondary btn-icon" 
-                                                            onClick={() => printBadge(v)} 
-                                                            title="Print Gate Pass / Badge"
-                                                        >
-                                                            <i className="fa-solid fa-print"></i>
-                                                        </button>
-                                                    </div>
+                                                <td style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                                    <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                                                         {v.status === 'checked-in' && (
+                                                             <button 
+                                                                 className="btn btn-outline btn-sm"
+                                                                 onClick={() => handleCheckout(v.id, v.name)}
+                                                                 title="Check Out Visitor"
+                                                                 style={{ color: '#dc2626', borderColor: '#fca5a5', padding: '2px 6px', fontSize: '10.5px', whiteSpace: 'nowrap' }}
+                                                             >
+                                                                 <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: '9.5px' }}></i>
+                                                                 <span>Out</span>
+                                                             </button>
+                                                         )}
+                                                         <button 
+                                                             className="btn btn-secondary btn-icon" 
+                                                             onClick={() => printBadge(v)} 
+                                                             title="Print Gate Pass / Badge"
+                                                             style={{ padding: '3px 6px', fontSize: '11px' }}
+                                                         >
+                                                             <i className="fa-solid fa-print"></i>
+                                                         </button>
+                                                     </div>
                                                 </td>
                                             </tr>
                                             {/* Accompanying Members Sub-rows: Show Visitor ID number only */}
@@ -601,8 +786,8 @@ export default function Dashboard() {
                                                             {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                         </span>
                                                     </td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                    <td style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                                                             Group Pass
                                                         </span>
                                                     </td>
@@ -791,10 +976,22 @@ export default function Dashboard() {
                                 </button>
                             )}
                             <button 
+                                ref={previewDoneBtnRef}
                                 className="btn btn-primary btn-sm"
                                 onClick={() => setPreviewVisitor(null)}
+                                title="Done (Enter / Esc to close)"
+                                autoFocus
                             >
-                                Close
+                                <i className="fa-solid fa-check" style={{ marginRight: '5px' }}></i>
+                                <span>Done</span>
+                                <span style={{ 
+                                    marginLeft: '6px', 
+                                    fontSize: '10px', 
+                                    background: 'rgba(255,255,255,0.25)', 
+                                    padding: '1px 5px', 
+                                    borderRadius: '3px',
+                                    fontWeight: '600'
+                                }}>↵ Enter</span>
                             </button>
                         </div>
                     </div>
@@ -857,157 +1054,353 @@ export default function Dashboard() {
 
                         {/* Modal Body */}
                         <div className="scan-popup-body">
-                            <div className="scan-popup-identity">
-                                <div className="scan-popup-photo-box">
-                                    <img 
-                                        src={getVisitorPhoto(scanPopup.visitor)} 
-                                        alt={scanPopup.visitor.name} 
-                                        className="scan-popup-photo" 
-                                    />
-                                </div>
-                                <div className="scan-popup-identity-text">
-                                    <h2 className="scan-popup-name">{scanPopup.visitor.name}</h2>
-                                    <div className="scan-popup-id-row">
-                                        <span className="badge-chip">
-                                            <i className="fa-solid fa-id-badge" style={{ marginRight: '4px' }}></i>
-                                            {scanPopup.visitor.visitorNo || scanPopup.visitor.id}
-                                        </span>
-                                        <span className={`status-badge ${scanPopup.visitor.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                            <i className={`fa-solid ${scanPopup.visitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
-                                            {scanPopup.visitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
-                                        </span>
-                                        {isOldVisitor(scanPopup.visitor) ? (
-                                            <span className="badge-tag-returning" style={{ padding: '2px 8px', fontSize: '11px' }}>
-                                                <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '4px' }}></i> Returning
-                                            </span>
-                                        ) : (
-                                            <span className="badge-tag-new" style={{ padding: '2px 8px', fontSize: '11px' }}>
-                                                <i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> New
-                                            </span>
-                                        )}
+                            {isEditingVisitor ? (
+                                <form className="scan-popup-edit-form" onSubmit={handleSaveEdit}>
+                                    <div className="scan-edit-header">
+                                        <i className="fa-solid fa-user-pen"></i>
+                                        <span>Edit Visitor Details</span>
                                     </div>
-                                    <div className="scan-popup-subinfo">
-                                        {scanPopup.visitor.phone && (
-                                            <div>
-                                                <i className="fa-solid fa-phone"></i>
-                                                <span>{scanPopup.visitor.phone}</span>
+                                    <div className="scan-edit-grid">
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">Full Name *</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.name || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                                placeholder="Visitor Name"
+                                                required
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">Phone Number</label>
+                                            <input 
+                                                type="tel" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.phone || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                                placeholder="Phone Number"
+                                            />
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">Company / Org</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.company || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
+                                                placeholder="Company Name"
+                                            />
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">To Meet (Host)</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                list="scan-hosts-list"
+                                                value={editFormData.hostName || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, hostName: e.target.value })}
+                                                placeholder="Host Name"
+                                            />
+                                            <datalist id="scan-hosts-list">
+                                                {hostList.map((h, idx) => (
+                                                    <option key={idx} value={typeof h === 'string' ? h : (h?.name || '')} />
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">Purpose</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.purpose || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, purpose: e.target.value })}
+                                                placeholder="Purpose of Visit"
+                                            />
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">Vehicle Details</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.vehicleNo || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, vehicleNo: e.target.value })}
+                                                placeholder="e.g. MH12AB1234 or No"
+                                            />
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">ID Proof Type</label>
+                                            <select 
+                                                className="scan-edit-select"
+                                                value={editFormData.idType || 'Aadhar Number'}
+                                                onChange={(e) => setEditFormData({ ...editFormData, idType: e.target.value })}
+                                            >
+                                                <option value="Aadhar Number">Aadhar Number</option>
+                                                <option value="PAN Number">PAN Number</option>
+                                                <option value="Passport">Passport</option>
+                                                <option value="Voter ID">Voter ID</option>
+                                                <option value="Driving License">Driving License</option>
+                                                <option value="Other ID">Other ID</option>
+                                            </select>
+                                        </div>
+                                        <div className="scan-edit-group">
+                                            <label className="scan-edit-label">ID Number</label>
+                                            <input 
+                                                type="text" 
+                                                className="scan-edit-input" 
+                                                value={editFormData.idNumber || ''} 
+                                                onChange={(e) => setEditFormData({ ...editFormData, idNumber: e.target.value })}
+                                                placeholder="ID Proof Number"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Extra Members Section */}
+                                    <div className="scan-edit-extragroup">
+                                        <label className="scan-edit-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={editFormData.hasExtraMembers === 'yes'}
+                                                onChange={(e) => setEditFormData({ ...editFormData, hasExtraMembers: e.target.checked ? 'yes' : 'no' })}
+                                            />
+                                            <span>Accompanying / Extra Members</span>
+                                        </label>
+                                        {editFormData.hasExtraMembers === 'yes' && (
+                                            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '10px', marginTop: '10px' }}>
+                                                <div>
+                                                    <label className="scan-edit-label" style={{ fontSize: '10px', marginBottom: '2px' }}>Count</label>
+                                                    <input 
+                                                        type="number" 
+                                                        min="1" 
+                                                        className="scan-edit-input" 
+                                                        value={editFormData.extraMembersCount || 1}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, extraMembersCount: e.target.value })}
+                                                        placeholder="Count"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="scan-edit-label" style={{ fontSize: '10px', marginBottom: '2px' }}>Member IDs / Names</label>
+                                                    <input 
+                                                        type="text" 
+                                                        className="scan-edit-input" 
+                                                        value={editFormData.extraMembersIds || ''}
+                                                        onChange={(e) => setEditFormData({ ...editFormData, extraMembersIds: e.target.value })}
+                                                        placeholder="e.g. ID-1234, ID-1235"
+                                                    />
+                                                </div>
                                             </div>
                                         )}
-                                        {scanPopup.visitor.company && (
-                                            <div>
-                                                <i className="fa-solid fa-building"></i>
-                                                <span>{scanPopup.visitor.company}</span>
+                                    </div>
+                                </form>
+                            ) : (
+                                <>
+                                    <div className="scan-popup-identity">
+                                        <div className="scan-popup-photo-box">
+                                            <img 
+                                                src={getVisitorPhoto(scanPopup.visitor)} 
+                                                alt={scanPopup.visitor.name} 
+                                                className="scan-popup-photo" 
+                                            />
+                                        </div>
+                                        <div className="scan-popup-identity-text">
+                                            <h2 className="scan-popup-name">{scanPopup.visitor.name}</h2>
+                                            <div className="scan-popup-id-row">
+                                                <span className="badge-chip">
+                                                    <i className="fa-solid fa-id-badge" style={{ marginRight: '4px' }}></i>
+                                                    {scanPopup.visitor.visitorNo || scanPopup.visitor.id}
+                                                </span>
+                                                <span className={`status-badge ${scanPopup.visitor.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
+                                                    <i className={`fa-solid ${scanPopup.visitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
+                                                    {scanPopup.visitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
+                                                </span>
+                                                {isOldVisitor(scanPopup.visitor) ? (
+                                                    <span className="badge-tag-returning" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                        <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '4px' }}></i> Returning
+                                                    </span>
+                                                ) : (
+                                                    <span className="badge-tag-new" style={{ padding: '2px 8px', fontSize: '11px' }}>
+                                                        <i className="fa-solid fa-user-plus" style={{ marginRight: '4px' }}></i> New
+                                                    </span>
+                                                )}
                                             </div>
-                                        )}
+                                            <div className="scan-popup-subinfo">
+                                                {scanPopup.visitor.phone && (
+                                                    <div>
+                                                        <i className="fa-solid fa-phone"></i>
+                                                        <span>{scanPopup.visitor.phone}</span>
+                                                    </div>
+                                                )}
+                                                {scanPopup.visitor.company && (
+                                                    <div>
+                                                        <i className="fa-solid fa-building"></i>
+                                                        <span>{scanPopup.visitor.company}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* Details Grid */}
-                            <div className="scan-popup-grid">
-                                <div className="scan-detail-item">
-                                    <div className="detail-card-icon icon-teal">
-                                        <i className="fa-solid fa-clock"></i>
-                                    </div>
-                                    <div>
-                                        <span className="scan-item-label">Check-In Time</span>
-                                        <span className="scan-item-val">{formatDateTime(scanPopup.visitor.checkInTime)}</span>
-                                    </div>
-                                </div>
+                                    {/* Details Grid */}
+                                    <div className="scan-popup-grid">
+                                        <div className="scan-detail-item">
+                                            <div className="detail-card-icon icon-teal">
+                                                <i className="fa-solid fa-clock"></i>
+                                            </div>
+                                            <div>
+                                                <span className="scan-item-label">Check-In Time</span>
+                                                <span className="scan-item-val">{formatDateTime(scanPopup.visitor.checkInTime)}</span>
+                                            </div>
+                                        </div>
 
-                                <div className="scan-detail-item">
-                                    <div className="detail-card-icon icon-orange">
-                                        <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                                    </div>
-                                    <div>
-                                        <span className="scan-item-label">Check-Out Time</span>
-                                        <span className="scan-item-val">
-                                            {scanPopup.visitor.checkOutTime ? (
-                                                formatDateTime(scanPopup.visitor.checkOutTime)
-                                            ) : (
-                                                <span style={{ color: '#059669', fontWeight: '700' }}>Active Inside</span>
-                                            )}
-                                        </span>
-                                    </div>
-                                </div>
+                                        <div className="scan-detail-item">
+                                            <div className="detail-card-icon icon-orange">
+                                                <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                            </div>
+                                            <div>
+                                                <span className="scan-item-label">Check-Out Time</span>
+                                                <span className="scan-item-val">
+                                                    {scanPopup.visitor.checkOutTime ? (
+                                                        formatDateTime(scanPopup.visitor.checkOutTime)
+                                                    ) : (
+                                                        <span style={{ color: '#059669', fontWeight: '700' }}>Active Inside</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                <div className="scan-detail-item">
-                                    <div className="detail-card-icon icon-blue">
-                                        <i className="fa-solid fa-user-tie"></i>
-                                    </div>
-                                    <div>
-                                        <span className="scan-item-label">To Meet Person</span>
-                                        <span className="scan-item-val" style={{ color: '#1d4ed8' }}>
-                                            {scanPopup.visitor.hostName || '-'}
-                                        </span>
-                                        {scanPopup.visitor.purpose && (
-                                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
-                                                {scanPopup.visitor.purpose}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                                        <div className="scan-detail-item">
+                                            <div className="detail-card-icon icon-blue">
+                                                <i className="fa-solid fa-user-tie"></i>
+                                            </div>
+                                            <div>
+                                                <span className="scan-item-label">To Meet Person</span>
+                                                <span className="scan-item-val" style={{ color: '#1d4ed8' }}>
+                                                    {scanPopup.visitor.hostName || '-'}
+                                                </span>
+                                                {scanPopup.visitor.purpose && (
+                                                    <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                                                        {scanPopup.visitor.purpose}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
 
-                                <div className="scan-detail-item">
-                                    <div className="detail-card-icon icon-purple">
-                                        <i className="fa-solid fa-car"></i>
-                                    </div>
-                                    <div>
-                                        <span className="scan-item-label">Vehicle Details</span>
-                                        <span className="scan-item-val" style={{ fontFamily: scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? 'monospace' : 'inherit' }}>
-                                            {scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? scanPopup.visitor.vehicleNo : 'No Vehicle'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                                        <div className="scan-detail-item">
+                                            <div className="detail-card-icon icon-purple">
+                                                <i className="fa-solid fa-car"></i>
+                                            </div>
+                                            <div>
+                                                <span className="scan-item-label">Vehicle Details</span>
+                                                <span className="scan-item-val" style={{ fontFamily: scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? 'monospace' : 'inherit' }}>
+                                                    {scanPopup.visitor.vehicleNo && scanPopup.visitor.vehicleNo !== 'No' ? scanPopup.visitor.vehicleNo : 'No Vehicle'}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                            {/* Extra Members Group Box if any */}
-                            {scanPopup.visitor.hasExtraMembers === 'yes' && (
-                                <div className="scan-popup-group-box">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                        <i className="fa-solid fa-users" style={{ color: '#2563eb' }}></i>
-                                        <strong style={{ fontSize: '13px', color: '#1e3a8a' }}>
-                                            Accompanying Members ({scanPopup.visitor.extraMembersCount || 1} Persons)
-                                        </strong>
+                                        <div className="scan-detail-item">
+                                            <div className="detail-card-icon icon-teal">
+                                                <i className="fa-solid fa-id-card"></i>
+                                            </div>
+                                            <div>
+                                                <span className="scan-item-label">ID Proof ({scanPopup.visitor.idType || 'ID'})</span>
+                                                <span className="scan-item-val" style={{ fontFamily: 'monospace' }}>
+                                                    {scanPopup.visitor.idNumber || 'Not Provided'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: '12px', color: '#2563eb' }}>
-                                        Member IDs: <strong>{scanPopup.visitor.extraMembersIds || 'Included in main pass'}</strong>
-                                    </div>
-                                </div>
+
+                                    {/* Extra Members Group Box if any */}
+                                    {scanPopup.visitor.hasExtraMembers === 'yes' && (
+                                        <div className="scan-popup-group-box">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                <i className="fa-solid fa-users" style={{ color: '#2563eb' }}></i>
+                                                <strong style={{ fontSize: '13px', color: '#1e3a8a' }}>
+                                                    Accompanying Members ({scanPopup.visitor.extraMembersCount || 1} Persons)
+                                                </strong>
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#2563eb' }}>
+                                                Member IDs: <strong>{scanPopup.visitor.extraMembersIds || 'Included in main pass'}</strong>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
 
                         {/* Modal Footer Actions */}
                         <div className="scan-popup-footer">
-                            <button 
-                                className="btn btn-secondary btn-sm" 
-                                onClick={() => printBadge(scanPopup.visitor)}
-                                title="Print Badge"
-                            >
-                                <i className="fa-solid fa-print"></i>
-                                <span>Print Badge</span>
-                            </button>
-                            {scanPopup.visitor.status === 'checked-in' && (
-                                <button 
-                                    className="btn btn-outline btn-sm"
-                                    style={{ color: '#dc2626', borderColor: '#fca5a5' }}
-                                    onClick={() => {
-                                        const v = scanPopup.visitor;
-                                        setScanPopup(null);
-                                        handleCheckout(v.id, v.name);
-                                    }}
-                                    title="Check Out Visitor"
-                                >
-                                    <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                                    <span>Check Out Now</span>
-                                </button>
+                            {isEditingVisitor ? (
+                                <>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-secondary btn-sm" 
+                                        onClick={() => setIsEditingVisitor(false)}
+                                    >
+                                        <i className="fa-solid fa-xmark"></i>
+                                        <span>Cancel</span>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-primary btn-sm" 
+                                        onClick={handleSaveEdit}
+                                        style={{ background: '#059669', borderColor: '#059669' }}
+                                    >
+                                        <i className="fa-solid fa-floppy-disk"></i>
+                                        <span>Save Changes</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button 
+                                        type="button"
+                                        className="btn btn-secondary btn-sm" 
+                                        onClick={handleStartEdit}
+                                        title="Edit Visitor Details"
+                                        style={{ marginRight: 'auto' }}
+                                    >
+                                        <i className="fa-solid fa-pen-to-square"></i>
+                                        <span>Edit</span>
+                                    </button>
+                                    {scanPopup.visitor.status === 'checked-in' && scanPopup.action !== 'checkin' && (
+                                        <button 
+                                            type="button"
+                                            className="btn btn-outline btn-sm"
+                                            style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                                            onClick={() => {
+                                                const v = scanPopup.visitor;
+                                                setScanPopup(null);
+                                                handleCheckout(v.id, v.name);
+                                            }}
+                                            title="Check Out Visitor"
+                                        >
+                                            <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                            <span>Check Out</span>
+                                        </button>
+                                    )}
+                                    <button 
+                                        ref={scanDoneBtnRef}
+                                        type="button"
+                                        className="btn btn-primary btn-sm"
+                                        onClick={handleDone}
+                                        autoFocus
+                                        title={scanPopup.action === 'checkin' || scanPopup.visitor.status === 'checked-in' ? "Done & Automatically Print Badge" : "Done (Close)"}
+                                        id="scan-popup-done-btn"
+                                    >
+                                        <i className={scanPopup.action === 'checkin' || scanPopup.visitor.status === 'checked-in' ? "fa-solid fa-print" : "fa-solid fa-check"} style={{ marginRight: '5px' }}></i>
+                                        <span>{scanPopup.action === 'checkin' || scanPopup.visitor.status === 'checked-in' ? "Done" : "Done"}</span>
+                                        <span style={{ 
+                                            marginLeft: '6px', 
+                                            fontSize: '10px', 
+                                            background: 'rgba(255,255,255,0.25)', 
+                                            padding: '1px 5px', 
+                                            borderRadius: '3px',
+                                            fontWeight: '600'
+                                        }}>↵ Enter</span>
+                                    </button>
+                                </>
                             )}
-                            <button 
-                                className="btn btn-primary btn-sm"
-                                onClick={() => setScanPopup(null)}
-                            >
-                                Done
-                            </button>
                         </div>
                     </div>
                 </div>

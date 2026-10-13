@@ -103,15 +103,16 @@ export default function QRScanner() {
                     visitor.checkInTime = checkInTime;
                     
                     setScanStatus('success-in');
-                    setMessage(`Checked IN • Printing Badge: ${visitor.name}`);
+                    setMessage(`Checked IN: ${visitor.name}`);
                     window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
                         detail: { visitor, action: 'checkin', timestamp: checkInTime } 
                     }));
-                    triggerAutoPrint(visitor);
                 } else if (visitor.status === 'checked-in' && isExplicitCheckin) {
                     setScanStatus('success-in');
-                    setMessage(`Printing Badge: ${visitor.name}`);
-                    triggerAutoPrint(visitor);
+                    setMessage(`Already Inside: ${visitor.name}`);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { visitor, action: 'checkin', timestamp: new Date().toISOString() } 
+                    }));
                 }
             } else {
                 setScanStatus('error');

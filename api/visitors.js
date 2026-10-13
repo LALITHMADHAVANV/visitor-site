@@ -17,29 +17,51 @@ export default async function handler(req, res) {
             const { id, visitorNo, phone, startsWith, field, value } = req.query || {};
 
             if (id) {
-                const visitor = await collection.findOne({ $or: [{ id: id }, { _id: id }] });
+                const cleanId = String(id).trim();
+                const visitor = await collection.findOne({
+                    $or: [
+                        { id: cleanId },
+                        { _id: cleanId },
+                        { visitorNo: cleanId },
+                        { id: { $regex: `^${cleanId}$`, $options: 'i' } },
+                        { visitorNo: { $regex: `^${cleanId}$`, $options: 'i' } }
+                    ]
+                });
                 return res.status(200).json(normalizeDoc(visitor));
             }
 
             if (visitorNo) {
-                const visitor = await collection.findOne({ visitorNo: visitorNo });
+                const cleanNo = String(visitorNo).trim();
+                const visitor = await collection.findOne({
+                    $or: [
+                        { visitorNo: cleanNo },
+                        { id: cleanNo },
+                        { _id: cleanNo },
+                        { visitorNo: { $regex: `^${cleanNo}$`, $options: 'i' } },
+                        { id: { $regex: `^${cleanNo}$`, $options: 'i' } }
+                    ]
+                });
                 return res.status(200).json(normalizeDoc(visitor));
             }
 
             if (phone) {
-                const visitors = await collection.find({ phone: phone }).sort({ created_at: -1 }).toArray();
+                const visitors = await collection.find({ phone: String(phone).trim() }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
             if (startsWith) {
-                const visitors = await collection.find({ id: { $regex: `^${startsWith}` } }).toArray();
+                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
             if (field && value) {
-                const filter = {};
-                filter[field] = value;
-                const visitors = await collection.find(filter).sort({ created_at: -1 }).toArray();
+                const cleanVal = String(value).trim();
+                const visitors = await collection.find({
+                    $or: [
+                        { [field]: cleanVal },
+                        { [field]: { $regex: `^${cleanVal}$`, $options: 'i' } }
+                    ]
+                }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 

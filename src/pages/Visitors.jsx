@@ -83,11 +83,17 @@ export default function Visitors() {
         XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateStr}.xlsx`);
     };
 
-    const formatDateTime = (isoString) => {
+    const formatTime = (isoString) => {
         if (!isoString) return '-';
-        return new Date(isoString).toLocaleString([], {
-            month: 'short', day: 'numeric',
+        return new Date(isoString).toLocaleTimeString([], {
             hour: '2-digit', minute: '2-digit'
+        });
+    };
+
+    const formatDate = (isoString) => {
+        if (!isoString) return '';
+        return new Date(isoString).toLocaleDateString([], {
+            month: 'short', day: 'numeric'
         });
     };
 
@@ -225,17 +231,17 @@ export default function Visitors() {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-                                <th>Visitor ID</th>
-                                <th>Visitor</th>
-                                <th style={{ textAlign: 'center' }}>Persons</th>
-                                <th>Phone</th>
-                                {/* <th>ID Proof</th> */}
-                                <th>To Meet</th>
-                                <th>Vehicle</th>
-                                <th>Check-In</th>
-                                <th>Check-Out</th>
-                                <th>Status</th>
+                                <th style={{ width: '3%', textAlign: 'center' }}>#</th>
+                                <th style={{ width: '9%' }}>Visitor ID</th>
+                                <th style={{ width: '17%' }}>Visitor</th>
+                                <th style={{ width: '5%', textAlign: 'center' }}>Persons</th>
+                                <th style={{ width: '9%' }}>Phone</th>
+                                <th style={{ width: '10%' }}>ID Proof</th>
+                                <th style={{ width: '14%' }}>To Meet</th>
+                                <th style={{ width: '7.5%' }}>Vehicle</th>
+                                <th style={{ width: '9%' }}>Check-In</th>
+                                <th style={{ width: '9%' }}>Check-Out</th>
+                                <th style={{ width: '7.5%' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -270,11 +276,11 @@ export default function Visitors() {
                                     return (
                                         <React.Fragment key={v.id}>
                                             <tr>
-                                                <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                                <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '11px' }}>
                                                     {index + 1}
                                                 </td>
                                                 <td>
-                                                    <span className="badge-id" style={{ fontFamily: 'monospace', fontSize: '11.5px', fontWeight: '700' }}>
+                                                    <span className="badge-id" style={{ fontFamily: 'monospace', fontSize: '10.5px', fontWeight: '700' }}>
                                                         {v.visitorNo || v.id}
                                                     </span>
                                                     {extraCount > 0 && (
@@ -299,13 +305,13 @@ export default function Visitors() {
                                                             className="avatar-sm"
                                                             alt={v.name}
                                                         />
-                                                        <div>
-                                                            <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{v.name}</strong>
-                                                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                                                            <strong style={{ color: 'var(--text-primary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px' }}>{v.name}</strong>
+                                                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                 {v.company || '-'}
                                                             </span>
                                                             {extraCount > 0 && (
-                                                                <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <div style={{ fontSize: '10.5px', color: '#2563eb', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                                                                     <i className="fa-solid fa-users" style={{ fontSize: '10px' }}></i>
                                                                     <span>Group ({totalPersons} persons)</span>
                                                                 </div>
@@ -314,9 +320,9 @@ export default function Visitors() {
                                                     </div>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
-                                                    <span style={{
-                                                        fontWeight: '700',
-                                                        fontSize: totalPersons > 1 ? '14px' : '12.5px',
+                                                    <span style={{ 
+                                                        fontWeight: '700', 
+                                                        fontSize: totalPersons > 1 ? '13px' : '12px',
                                                         color: totalPersons > 1 ? 'var(--primary)' : 'var(--text-secondary)',
                                                         display: 'block'
                                                     }}>
@@ -331,55 +337,72 @@ export default function Visitors() {
                                                             borderRadius: '4px',
                                                             fontWeight: '600',
                                                             display: 'inline-block',
-                                                            marginTop: '2px'
+                                                            marginTop: '2px',
+                                                            whiteSpace: 'nowrap'
                                                         }}>
-                                                            1 + {extraCount}
+                                                            1+{extraCount}
                                                         </span>
                                                     ) : (
                                                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Single</span>
                                                     )}
                                                 </td>
-                                                <td>
-                                                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{v.phone || '-'}</span>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{v.phone || '-'}</span>
                                                 </td>
-                                                {/* <td>
+                                                <td style={{ overflow: 'hidden' }}>
                                                     {v.idType ? (
                                                         <div>
-                                                            <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '600', display: 'block' }}>
+                                                            <span style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: '600', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                 {v.idType}
                                                             </span>
-                                                            <span style={{ fontSize: '12px', fontFamily: 'monospace', color: '#475569' }}>
+                                                            <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#475569', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                 {v.idNumber || '-'}
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
                                                     )}
-                                                </td> */}
-                                                <td>
-                                                    <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{v.hostName}</div>
-                                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                </td>
+                                                <td style={{ overflow: 'hidden' }}>
+                                                    <div style={{ fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.hostName}>{v.hostName}</div>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.purpose || '-'}>
                                                         {v.purpose || '-'}
                                                     </span>
                                                 </td>
-                                                <td>
-                                                    <span style={{ fontSize: '12.5px', color: v.vehicleNo && v.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <span style={{ fontSize: '11px', color: v.vehicleNo && v.vehicleNo !== 'No' ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                                         {v.vehicleNo || 'No'}
                                                     </span>
                                                 </td>
-                                                <td>
-                                                    <span style={{ fontSize: '12.5px', fontWeight: '500' }}>
-                                                        {formatDateTime(v.checkInTime)}
-                                                    </span>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <div style={{ lineHeight: '1.25' }}>
+                                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', whiteSpace: 'nowrap' }}>
+                                                            {formatTime(v.checkInTime)}
+                                                        </span>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block', whiteSpace: 'nowrap' }}>
+                                                            {formatDate(v.checkInTime)}
+                                                        </span>
+                                                    </div>
                                                 </td>
-                                                <td>
-                                                    <span style={{ fontSize: '12.5px', color: v.checkOutTime ? 'var(--text-primary)' : 'var(--success)' }}>
-                                                        {v.checkOutTime ? formatDateTime(v.checkOutTime) : 'Active Inside'}
-                                                    </span>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    {v.checkOutTime ? (
+                                                        <div style={{ lineHeight: '1.25' }}>
+                                                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', whiteSpace: 'nowrap' }}>
+                                                                {formatTime(v.checkOutTime)}
+                                                            </span>
+                                                            <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block', whiteSpace: 'nowrap' }}>
+                                                                {formatDate(v.checkOutTime)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                            Active Inside
+                                                        </span>
+                                                    )}
                                                 </td>
-                                                <td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
                                                     <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '10px' }}></i>
+                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
                                                         {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                     </span>
                                                 </td>
@@ -433,14 +456,30 @@ export default function Visitors() {
                                                         {v.vehicleNo || 'No'}
                                                     </td>
                                                     <td>
-                                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                            {formatDateTime(v.checkInTime)}
-                                                        </span>
+                                                        <div style={{ lineHeight: '1.25' }}>
+                                                            <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'block' }}>
+                                                                {formatTime(v.checkInTime)}
+                                                            </span>
+                                                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                                {formatDate(v.checkInTime)}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td>
-                                                        <span style={{ fontSize: '12px', color: v.checkOutTime ? 'var(--text-secondary)' : 'var(--success)' }}>
-                                                            {v.checkOutTime ? formatDateTime(v.checkOutTime) : 'Active Inside'}
-                                                        </span>
+                                                        {v.checkOutTime ? (
+                                                            <div style={{ lineHeight: '1.25' }}>
+                                                                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'block' }}>
+                                                                    {formatTime(v.checkOutTime)}
+                                                                </span>
+                                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                                    {formatDate(v.checkOutTime)}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: 'var(--success)', fontSize: '11px' }}>
+                                                                Active Inside
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>

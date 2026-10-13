@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useReactToPrint } from 'react-to-print';
 import { db, generateVisitorId } from '../db';
-import { OFFICE_HOSTS } from '../hosts';
+import { fetchHosts, saveHost } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
 import { generateNameAvatar } from '../avatarUtils';
 import { sendTelegramMessage } from '../telegram';
@@ -115,6 +115,43 @@ export default function Register({ isKiosk = false }) {
     });
 
     const idValidation = getIdValidation(formData.idType, formData.idNumber);
+
+    const [hostList, setHostList] = useState([]);
+
+    useEffect(() => {
+        const loadHosts = async () => {
+            const list = await fetchHosts();
+            setHostList(list);
+        };
+        loadHosts();
+    }, []);
+
+    const autoGenerateExtraIds = () => {
+        const count = parseInt(formData.extraMembersCount) || 1;
+        if (!formData.extraMembersCount) {
+            setFormData(prev => ({ ...prev, extraMembersCount: String(count) }));
+        }
+        const baseId = (formData.visitorNo || '').trim();
+        if (!baseId) {
+            const ids = Array.from({ length: count }, (_, i) => `EXTRA-${i + 1}`).join(', ');
+            setFormData(prev => ({ ...prev, extraMembersIds: ids }));
+            return;
+        }
+        const match = baseId.match(/^(.*?)(\d+)$/);
+        if (match) {
+            const prefix = match[1];
+            const numStr = match[2];
+            const num = parseInt(numStr, 10);
+            const padLen = numStr.length;
+            const ids = Array.from({ length: count }, (_, i) => {
+                return `${prefix}${String(num + i + 1).padStart(padLen, '0')}`;
+            }).join(', ');
+            setFormData(prev => ({ ...prev, extraMembersIds: ids }));
+        } else {
+            const ids = Array.from({ length: count }, (_, i) => `${baseId}-M${i + 1}`).join(', ');
+            setFormData(prev => ({ ...prev, extraMembersIds: ids }));
+        }
+    };
 
 
     const capture = useCallback(() => {
@@ -369,6 +406,18 @@ export default function Register({ isKiosk = false }) {
             };
 
             await db.visitors.add(visitor);
+
+            // Automatically persist host name to MongoDB hosts collection for future suggestions
+            if (formData.hostName && formData.hostName.trim()) {
+                saveHost(formData.hostName.trim()).then(saved => {
+                    if (saved) {
+                        setHostList(prev => {
+                            const exists = prev.some(h => (h.name || '').toUpperCase() === saved.name.toUpperCase());
+                            return exists ? prev : [...prev, saved];
+                        });
+                    }
+                }).catch(err => console.error("Host save error:", err));
+            }
 
             if (location.state?.preregData?.id) {
                 await db.preregistered.update(location.state.preregData.id, { status: 'arrived' });
@@ -739,35 +788,19 @@ export default function Register({ isKiosk = false }) {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label-header">
-                                        <div class="flex_d">
-                                            <span className="label-title">
-                                                <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
-                                                Visitor ID / Badge No
-                                            </span>
-                                            <span className="label-hint">(Click ↻ to generate)</span>
-                                        </div>
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Visitor ID / Badge No
+                                        </span>
                                     </label>
-                                    <div className="input-with-action">
-                                        <input
-                                            type="text"
-                                            name="visitorNo"
-                                            value={formData.visitorNo}
-                                            onChange={handleChange}
-                                            placeholder="Visitor ID / Badge No"
-                                            className="mono-bold-input"
-                                        />
-                                        <button
-                                            type="button"
-                                            title="Generate new Visitor No"
-                                            onClick={async () => {
-                                                const newId = await generateVisitorId();
-                                                setFormData(prev => ({ ...prev, visitorNo: newId }));
-                                            }}
-                                            className="btn-icon-action"
-                                        >
-                                            <i className="fa-solid fa-rotate"></i>
-                                        </button>
-                                    </div>
+                                    <input
+                                        type="text"
+                                        name="visitorNo"
+                                        value={formData.visitorNo}
+                                        onChange={handleChange}
+                                        placeholder="Enter Visitor ID / Badge No"
+                                        className="mono-bold-input"
+                                    />
                                 </div>
 
                                 <div className="form-group">
@@ -905,7 +938,7 @@ export default function Register({ isKiosk = false }) {
                                 </div>
                             </div>
 
-                            {/* Row 4: Host & Vehicle Details */}
+                            {/* Row 4: Host with dynamic suggestions & Purpose of Visit */}
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label-header">
@@ -913,42 +946,49 @@ export default function Register({ isKiosk = false }) {
                                             <i className="fa-solid fa-user-tie" style={{ color: 'var(--accent-primary)' }}></i>
                                             Person to Meet / Host *
                                         </span>
+                                        <span className="label-hint">(Select or type new name)</span>
                                     </label>
-                                    <select
-                                        name="hostSelect"
+                                    <input
+                                        type="text"
+                                        name="hostName"
+                                        list="host-suggestions-list"
                                         required
-                                        value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (val === 'other') {
-                                                setFormData(prev => ({ ...prev, hostName: '' }));
-                                            } else {
-                                                setFormData(prev => ({ ...prev, hostName: val }));
-                                            }
-                                        }}
+                                        value={formData.hostName}
+                                        onChange={handleChange}
+                                        placeholder="Type or select person to meet"
                                         className="form-control"
-                                    >
-                                        <option value="">-- Select Person to Meet --</option>
-                                        {OFFICE_HOSTS.map(h => (
-                                            <option key={h.name} value={h.name}>
-                                                {h.name} {h.department ? `(${h.department})` : ''}
+                                        autoComplete="off"
+                                    />
+                                    <datalist id="host-suggestions-list">
+                                        {hostList.map((h, idx) => (
+                                            <option key={h.id || h.name || idx} value={h.name}>
+                                                {h.department ? `${h.name} (${h.department})` : h.name}
                                             </option>
                                         ))}
-                                        <option value="other">Other (Type Custom Name)</option>
-                                    </select>
-                                    {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
-                                        <input
-                                            type="text"
-                                            name="hostName"
-                                            required
-                                            value={formData.hostName}
-                                            onChange={handleChange}
-                                            placeholder="Type host or department name"
-                                            style={{ marginTop: '8px' }}
-                                        />
-                                    )}
+                                    </datalist>
                                 </div>
 
+                                <div className="form-group">
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Purpose of Visit *
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="purpose"
+                                        required
+                                        value={formData.purpose}
+                                        onChange={handleChange}
+                                        placeholder="Meeting, Interview, Delivery, etc."
+                                        className="form-control"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Row 5: Vehicle & Extra Members Check */}
+                            <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label-header">
                                         <span className="label-title">
@@ -979,10 +1019,7 @@ export default function Register({ isKiosk = false }) {
                                         )}
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Row 5: Extra Accompanying Members & Purpose */}
-                            <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label-header">
                                         <span className="label-title">
@@ -999,17 +1036,29 @@ export default function Register({ isKiosk = false }) {
                                         <option value="no">No Extra Members</option>
                                         <option value="yes">Yes (Accompanying)</option>
                                     </select>
+                                    <span className="field-hint" style={{ color: formData.hasExtraMembers === 'yes' ? 'var(--accent-primary)' : '#64748b' }}>
+                                        {formData.hasExtraMembers === 'yes'
+                                            ? '✓ Enter Extra Member Pass IDs in the bar below'
+                                            : 'Select "Yes" to open Extra Member Visitor ID entering bar below'}
+                                    </span>
                                 </div>
+                            </div>
 
-                                {formData.hasExtraMembers === 'yes' ? (
-                                    <div className="form-group">
-                                        <label className="form-label-header">
-                                            <span className="label-title">
-                                                <i className="fa-solid fa-hashtag" style={{ color: 'var(--accent-primary)' }}></i>
-                                                Members & Pass IDs *
-                                            </span>
-                                        </label>
-                                        <div className="extra-members-inputs width_50">
+                            {/* Extra Members Section - Displayed directly UNDER */}
+                            {formData.hasExtraMembers === 'yes' && (
+                                <div className="extra-members-box">
+                                    <div className="extra-members-box-title">
+                                        <i className="fa-solid fa-users-rectangle" style={{ color: 'var(--accent-primary)' }}></i>
+                                        Accompanying Extra Member Information
+                                    </div>
+                                    <div className="extra-members-grid">
+                                        <div className="form-group">
+                                            <label className="form-label-header">
+                                                <span className="label-title">
+                                                    <i className="fa-solid fa-hashtag" style={{ color: 'var(--accent-primary)' }}></i>
+                                                    Member Count *
+                                                </span>
+                                            </label>
                                             <input
                                                 type="number"
                                                 name="extraMembersCount"
@@ -1019,44 +1068,44 @@ export default function Register({ isKiosk = false }) {
                                                 value={formData.extraMembersCount}
                                                 onChange={handleChange}
                                                 placeholder="Count"
-                                                className="input-extra-count"
-                                            />
-                                            <input
-                                                type="text"
-                                                name="extraMembersIds"
-                                                required
-                                                value={formData.extraMembersIds}
-                                                onChange={handleChange}
-                                                style={{ width: '168px' }}
-                                                placeholder="Pass IDs (e.g. VIS-1002, VIS-1003)"
-                                                className="input-extra-ids"
+                                                className="form-control"
                                             />
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="form-group">
-                                        <label className="form-label-header">
-                                            <span className="label-title">
-                                                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--accent-primary)' }}></i>
-                                                Purpose of Visit *
-                                            </span>
-                                        </label>
-                                        <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
-                                    </div>
-                                )}
-                            </div>
 
-                            {/* Row 6: Purpose of Visit if Extra Members is active */}
-                            {formData.hasExtraMembers === 'yes' && (
-                                <div className="form-row">
-                                    <div className="form-group full-width">
-                                        <label className="form-label-header">
-                                            <span className="label-title">
-                                                <i className="fa-solid fa-clipboard-list" style={{ color: 'var(--accent-primary)' }}></i>
-                                                Purpose of Visit *
-                                            </span>
-                                        </label>
-                                        <input type="text" name="purpose" required value={formData.purpose} onChange={handleChange} placeholder="Meeting, Interview, Delivery, etc." />
+                                        <div className="form-group">
+                                            <label className="form-label-header">
+                                                <div className="flex_d" style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span className="label-title">
+                                                        <i className="fa-solid fa-id-card" style={{ color: 'var(--accent-primary)' }}></i>
+                                                        Extra Member Visitor ID / Pass IDs Entering Bar *
+                                                    </span>
+                                                    <span className="label-hint">(Click 🪄 to auto-generate)</span>
+                                                </div>
+                                            </label>
+                                            <div className="input-with-action">
+                                                <input
+                                                    type="text"
+                                                    name="extraMembersIds"
+                                                    required
+                                                    value={formData.extraMembersIds}
+                                                    onChange={handleChange}
+                                                    placeholder="Enter Extra Member Pass IDs (e.g. VIS-1002, VIS-1003)"
+                                                    className="form-control mono-bold-input"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    title="Auto-generate Extra Member Pass IDs"
+                                                    onClick={autoGenerateExtraIds}
+                                                    className="btn-icon-action"
+                                                >
+                                                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="extra-members-hint">
+                                        <i className="fa-solid fa-circle-info"></i>
+                                        Enter or auto-generate the Visitor ID / Badge number for each accompanying person separated by commas.
                                     </div>
                                 </div>
                             )}

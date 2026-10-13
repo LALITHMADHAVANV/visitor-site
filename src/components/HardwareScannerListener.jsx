@@ -59,6 +59,9 @@ export default function HardwareScannerListener() {
         contentRef: badgeRef,
         documentTitle: printVisitor ? `Visitor_Badge_${printVisitor.id}` : 'Visitor_Badge',
         pageStyle: THERMAL_80MM_PAGE_STYLE,
+        onAfterPrint: () => {
+            window.dispatchEvent(new CustomEvent('visitor-print-completed'));
+        },
     });
 
     const triggerAutoPrint = (visitorToPrint) => {
@@ -199,7 +202,7 @@ export default function HardwareScannerListener() {
                     playChime('in');
                     showAlert({
                         type: 'success-in',
-                        title: 'Visitor Checked In • Printing Badge',
+                        title: 'Visitor Checked In',
                         subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
                         visitor
                     });
@@ -210,19 +213,21 @@ export default function HardwareScannerListener() {
                             timestamp: checkInTime
                         } 
                     }));
-
-                    // Automatically print the badge on the connected printer
-                    triggerAutoPrint(visitor);
                 } else if (visitor.status === 'checked-in' && isExplicitCheckin) {
-                    // Re-print badge if check-in QR scanned while already inside
                     playChime('in');
                     showAlert({
                         type: 'success-in',
-                        title: 'Printing Visitor Badge',
+                        title: 'Visitor Already Inside',
                         subtitle: `${visitor.name} (${visitor.visitorNo || visitor.id})`,
                         visitor
                     });
-                    triggerAutoPrint(visitor);
+                    window.dispatchEvent(new CustomEvent('visitor-scan-processed', { 
+                        detail: { 
+                            visitor, 
+                            action: 'checkin',
+                            timestamp: new Date().toISOString()
+                        } 
+                    }));
                 }
             } else {
                 playChime('error');

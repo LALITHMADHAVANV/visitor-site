@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import { useNavigate } from 'react-router-dom';
-import { OFFICE_HOSTS } from '../hosts';
+import { fetchHosts, saveHost } from '../hosts';
 
 export default function PreRegister() {
     const [formData, setFormData] = useState({
@@ -12,6 +12,7 @@ export default function PreRegister() {
         purpose: ''
     });
     const [preregisteredList, setPreregisteredList] = useState([]);
+    const [hostList, setHostList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [submitting, setSubmitting] = useState(false);
     
@@ -28,6 +29,11 @@ export default function PreRegister() {
 
     useEffect(() => {
         fetchPreregistered();
+        const loadHosts = async () => {
+            const list = await fetchHosts();
+            setHostList(list);
+        };
+        loadHosts();
         const interval = setInterval(fetchPreregistered, 3000);
         return () => clearInterval(interval);
     }, []);
@@ -58,6 +64,17 @@ export default function PreRegister() {
                 status: 'expected',
                 created_at: new Date().toISOString()
             });
+
+            if (formData.hostName && formData.hostName.trim()) {
+                saveHost(formData.hostName.trim()).then(saved => {
+                    if (saved) {
+                        setHostList(prev => {
+                            const exists = prev.some(h => (h.name || '').toUpperCase() === saved.name.toUpperCase());
+                            return exists ? prev : [...prev, saved];
+                        });
+                    }
+                }).catch(err => console.error("Host save error:", err));
+            }
             
             setFormData({ name: '', company: '', hostName: '', expectedDate: '', purpose: '' });
             await fetchPreregistered();
@@ -242,40 +259,24 @@ export default function PreRegister() {
 
                         <div className="form-group">
                             <label>Person to Visit (Host) *</label>
-                            <select 
-                                name="hostSelect" 
+                            <input 
+                                type="text" 
+                                name="hostName" 
+                                list="prereg-host-suggestions"
                                 required 
-                                value={OFFICE_HOSTS.some(h => h.name === formData.hostName) ? formData.hostName : (formData.hostName ? 'other' : '')} 
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === 'other') {
-                                        setFormData(prev => ({ ...prev, hostName: '' }));
-                                    } else {
-                                        setFormData(prev => ({ ...prev, hostName: val }));
-                                    }
-                                }}
-                                className="form-control"
-                            >
-                                <option value="">-- Select Host --</option>
-                                {OFFICE_HOSTS.map(h => (
-                                    <option key={h.name} value={h.name}>
-                                        {h.name} {h.department ? `(${h.department})` : ''}
+                                value={formData.hostName} 
+                                onChange={handleChange} 
+                                placeholder="Type or select person to meet" 
+                                className="form-control" 
+                                autoComplete="off"
+                            />
+                            <datalist id="prereg-host-suggestions">
+                                {hostList.map((h, idx) => (
+                                    <option key={h.id || h.name || idx} value={h.name}>
+                                        {h.department ? `${h.name} (${h.department})` : h.name}
                                     </option>
                                 ))}
-                                <option value="other">Other (Type Name)</option>
-                            </select>
-                            {(!OFFICE_HOSTS.some(h => h.name === formData.hostName) || formData.hostName === '') && (
-                                <input 
-                                    type="text" 
-                                    name="hostName" 
-                                    required 
-                                    value={formData.hostName} 
-                                    onChange={handleChange} 
-                                    placeholder="Enter host or department name" 
-                                    className="form-control" 
-                                    style={{ marginTop: '8px' }} 
-                                />
-                            )}
+                            </datalist>
                         </div>
 
                         <div className="form-group">
