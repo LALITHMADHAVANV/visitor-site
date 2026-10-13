@@ -16,6 +16,10 @@ export default function Dashboard() {
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [previewVisitor, setPreviewVisitor] = useState(null);
     const [scanPopup, setScanPopup] = useState(null); // { visitor, action: 'checkin' | 'checkout' | 'already-checked-out', timestamp }
+    const scanPopupOpenedAtRef = useRef(0);
+    const [delayCountdown, setDelayCountdown] = useState(0);
+    const lastPrintEndTimeRef = useRef(0);
+    const isPrintingRef = useRef(false);
     const [allVisitors, setAllVisitors] = useState([]);
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'inside', 'checked-out'
     const [searchTerm, setSearchTerm] = useState('');
@@ -160,10 +164,56 @@ export default function Dashboard() {
     };
 
     useEffect(() => {
-        if (scanPopup) {
-            const timer = setTimeout(() => scanDoneBtnRef.current?.focus(), 50);
-            return () => clearTimeout(timer);
-        }
+        const handleBeforePrint = () => {
+            isPrintingRef.current = true;
+        };
+        const handleAfterPrint = () => {
+            isPrintingRef.current = false;
+            lastPrintEndTimeRef.current = Date.now();
+        };
+
+        window.addEventListener('beforeprint', handleBeforePrint);
+        window.addEventListener('afterprint', handleAfterPrint);
+
+        return () => {
+            window.removeEventListener('beforeprint', handleBeforePrint);
+            window.removeEventListener('afterprint', handleAfterPrint);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!scanPopup) return;
+        scanPopupOpenedAtRef.current = Date.now();
+        const delayMs = scanPopup.action === 'checkin' ? 2500 : 1000;
+
+        // When scan popup opens (especially on check-in where browser print dialog triggers simultaneously),
+        // enforce an intentional delay before Enter key can dismiss it so user doesn't accidentally
+        // close the popup while confirming the print dialog or from trailing barcode scanner Enter.
+        const initialTimer = setTimeout(() => {
+            setDelayCountdown(Math.ceil(delayMs / 1000));
+        }, 0);
+
+        const interval = setInterval(() => {
+            setDelayCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        const timer = setTimeout(() => {
+            setDelayCountdown(0);
+            scanDoneBtnRef.current?.focus();
+        }, delayMs);
+
+        return () => {
+            clearTimeout(initialTimer);
+            clearTimeout(timer);
+            clearInterval(interval);
+            setDelayCountdown(0);
+        };
     }, [scanPopup]);
 
     useEffect(() => {
@@ -185,8 +235,22 @@ export default function Dashboard() {
                     setPreviewVisitor(null);
                 }
             } else if (e.key === 'Enter') {
-                // When checkin or checkout popup is open, Enter triggers Done and closes it
+                // If browser print dialog is active or just completed (< 800ms ago), ignore Enter
+                if (isPrintingRef.current || (Date.now() - lastPrintEndTimeRef.current < 800)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+
+                // When scan popup is open, Enter triggers Done only after delay expires
                 if (scanPopup) {
+                    const delayMs = scanPopup.action === 'checkin' ? 2500 : 1000;
+                    const elapsed = Date.now() - scanPopupOpenedAtRef.current;
+                    if (elapsed < delayMs) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
                     e.preventDefault();
                     e.stopPropagation();
                     setScanPopup(null);
@@ -1054,20 +1118,30 @@ export default function Dashboard() {
                                 ref={scanDoneBtnRef}
                                 className="btn btn-primary btn-sm"
                                 onClick={() => setScanPopup(null)}
-                                title="Done (Enter to close)"
+                                title={delayCountdown === 0 ? "Done (Enter to close)" : "Done (Click to close)"}
                                 id="scan-popup-done-btn"
-                                autoFocus
                             >
                                 <i className="fa-solid fa-check" style={{ marginRight: '5px' }}></i>
                                 <span>Done</span>
-                                <span style={{ 
-                                    marginLeft: '6px', 
-                                    fontSize: '10px', 
-                                    background: 'rgba(255,255,255,0.25)', 
-                                    padding: '1px 5px', 
-                                    borderRadius: '3px',
-                                    fontWeight: '600'
-                                }}>↵ Enter</span>
+                                {delayCountdown === 0 ? (
+                                    <span style={{ 
+                                        marginLeft: '6px', 
+                                        fontSize: '10px', 
+                                        background: 'rgba(255,255,255,0.25)', 
+                                        padding: '1px 5px', 
+                                        borderRadius: '3px',
+                                        fontWeight: '600'
+                                    }}>↵ Enter</span>
+                                ) : delayCountdown > 0 ? (
+                                    <span style={{ 
+                                        marginLeft: '6px', 
+                                        fontSize: '10px', 
+                                        background: 'rgba(255,255,255,0.2)', 
+                                        padding: '1px 5px', 
+                                        borderRadius: '3px',
+                                        opacity: 0.85
+                                    }}>{delayCountdown}s</span>
+                                ) : null}
                             </button>
                         </div>
                     </div>
