@@ -788,35 +788,19 @@ export default function Register({ isKiosk = false }) {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label-header">
-                                        <div class="flex_d">
-                                            <span className="label-title">
-                                                <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
-                                                Visitor ID / Badge No
-                                            </span>
-                                            <span className="label-hint">(Click ↻ to generate)</span>
-                                        </div>
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Visitor ID / Badge No
+                                        </span>
                                     </label>
-                                    <div className="input-with-action">
-                                        <input
-                                            type="text"
-                                            name="visitorNo"
-                                            value={formData.visitorNo}
-                                            onChange={handleChange}
-                                            placeholder="Visitor ID / Badge No"
-                                            className="mono-bold-input"
-                                        />
-                                        <button
-                                            type="button"
-                                            title="Generate new Visitor No"
-                                            onClick={async () => {
-                                                const newId = await generateVisitorId();
-                                                setFormData(prev => ({ ...prev, visitorNo: newId }));
-                                            }}
-                                            className="btn-icon-action"
-                                        >
-                                            <i className="fa-solid fa-rotate"></i>
-                                        </button>
-                                    </div>
+                                    <input
+                                        type="text"
+                                        name="visitorNo"
+                                        value={formData.visitorNo}
+                                        onChange={handleChange}
+                                        placeholder="Enter Visitor ID / Badge No"
+                                        className="mono-bold-input"
+                                    />
                                 </div>
 
                                 <div className="form-group">
