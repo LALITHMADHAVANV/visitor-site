@@ -1009,7 +1009,7 @@ export default function Register({ isKiosk = false }) {
                                                 Members & Pass IDs *
                                             </span>
                                         </label>
-                                        <div className="extra-members-inputs">
+                                        <div className="extra-members-inputs width_50">
                                             <input
                                                 type="number"
                                                 name="extraMembersCount"
@@ -1027,6 +1027,7 @@ export default function Register({ isKiosk = false }) {
                                                 required
                                                 value={formData.extraMembersIds}
                                                 onChange={handleChange}
+                                                style={{ width: '168px' }}
                                                 placeholder="Pass IDs (e.g. VIS-1002, VIS-1003)"
                                                 className="input-extra-ids"
                                             />
