@@ -362,7 +362,7 @@ export default function Dashboard() {
             </div>
 
             {/* Main Table Card */}
-            <div className="glass-panel dashboard-table-card mt-4">
+            <div className="glass-panel dashboard-table-card">
                 {/* Card Header & Controls */}
                 <div className="table-controls-bar">
                     <div className="controls-left">
@@ -439,18 +439,18 @@ export default function Dashboard() {
 
                 {/* Table Content */}
                 <div className="table-responsive">
-                        <table className="data-table">
+                        <table className="data-table" style={{ minWidth: '1050px' }}>
                             <thead>
                                 <tr>
                                     <th style={{ width: '3.5%', textAlign: 'center' }}>#</th>
-                                    <th style={{ width: '11%' }}>Visitor ID</th>
-                                    <th style={{ width: '24%' }}>Visitor Details</th>
-                                    <th style={{ width: '6.5%', textAlign: 'center' }}>Persons</th>
-                                    <th style={{ width: '16%' }}>To Meet</th>
-                                    <th style={{ width: '10%' }}>Check In</th>
-                                    <th style={{ width: '10%' }}>Check Out</th>
-                                    <th style={{ width: '9.5%' }}>Status</th>
-                                    <th style={{ width: '9.5%', textAlign: 'right' }}>Actions</th>
+                                    <th style={{ width: '10.5%' }}>Visitor ID</th>
+                                    <th style={{ width: '22%' }}>Visitor Details</th>
+                                    <th style={{ width: '5.5%', textAlign: 'center' }}>Persons</th>
+                                    <th style={{ width: '15%' }}>To Meet</th>
+                                    <th style={{ width: '9.5%' }}>Check In</th>
+                                    <th style={{ width: '9.5%' }}>Check Out</th>
+                                    <th style={{ width: '9%' }}>Status</th>
+                                    <th style={{ width: '15.5%', textAlign: 'right', paddingRight: '14px' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -616,7 +616,7 @@ export default function Dashboard() {
                                                         {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                     </span>
                                                 </td>
-                                                <td style={{ textAlign: 'right' }}>
+                                                <td style={{ textAlign: 'right', paddingRight: '14px' }}>
                                                     <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
                                                          {v.status === 'checked-in' && (
                                                              <button 
@@ -693,8 +693,8 @@ export default function Dashboard() {
                                                             {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
                                                         </span>
                                                     </td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                    <td style={{ textAlign: 'right', paddingRight: '14px' }}>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                                                             Group Pass
                                                         </span>
                                                     </td>
