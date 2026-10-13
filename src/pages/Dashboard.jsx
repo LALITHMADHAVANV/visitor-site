@@ -386,15 +386,15 @@ export default function Dashboard() {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '26px', textAlign: 'center' }}>#</th>
-                                    <th style={{ width: '100px' }}>Visitor ID</th>
-                                    <th>Visitor Details</th>
-                                    <th style={{ width: '44px', textAlign: 'center' }}>Persons</th>
-                                    <th>To Meet</th>
-                                    <th style={{ width: '70px' }}>Check In</th>
-                                    <th style={{ width: '70px' }}>Check Out</th>
-                                    <th style={{ width: '76px' }}>Status</th>
-                                    <th style={{ width: '88px', textAlign: 'right' }}>Actions</th>
+                                    <th style={{ width: '3.5%', textAlign: 'center' }}>#</th>
+                                    <th style={{ width: '11%' }}>Visitor ID</th>
+                                    <th style={{ width: '24%' }}>Visitor Details</th>
+                                    <th style={{ width: '6.5%', textAlign: 'center' }}>Persons</th>
+                                    <th style={{ width: '16%' }}>To Meet</th>
+                                    <th style={{ width: '10%' }}>Check In</th>
+                                    <th style={{ width: '10%' }}>Check Out</th>
+                                    <th style={{ width: '9.5%' }}>Status</th>
+                                    <th style={{ width: '9.5%', textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -483,25 +483,25 @@ export default function Dashboard() {
                                                                 <i className="fa-solid fa-magnifying-glass-plus"></i>
                                                             </div>
                                                         </div>
-                                                        <div>
+                                                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                                             <div 
-                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                                style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}
                                                                 onClick={() => setPreviewVisitor(v)}
                                                                 title="Touch / click to view visitor details"
                                                             >
-                                                                <span>{v.name}</span>
+                                                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>
                                                                 {isOldVisitor(v) ? (
                                                                     <span className="badge-tag-returning" title="Returning visitor (visited previously)">Old</span>
                                                                 ) : (
                                                                     <span className="badge-tag-new" title="First-time visitor">New</span>
                                                                 )}
                                                             </div>
-                                                            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                                                                {v.company && <span>{v.company}</span>}
-                                                                {v.phone && <span>• {v.phone}</span>}
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {v.company && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.company}</span>}
+                                                                {v.phone && <span style={{ whiteSpace: 'nowrap' }}>• {v.phone}</span>}
                                                             </div>
                                                             {extraCount > 0 && (
-                                                                <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <div style={{ fontSize: '10.5px', color: '#2563eb', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                                                                     <i className="fa-solid fa-users" style={{ fontSize: '10px' }}></i>
                                                                     <span>Group ({totalPersons} persons)</span>
                                                                 </div>
@@ -512,7 +512,7 @@ export default function Dashboard() {
                                                 <td style={{ textAlign: 'center' }}>
                                                     <span style={{ 
                                                         fontWeight: '700', 
-                                                        fontSize: totalPersons > 1 ? '15px' : '13px',
+                                                        fontSize: totalPersons > 1 ? '14px' : '12.5px',
                                                         color: totalPersons > 1 ? 'var(--primary)' : 'var(--text-secondary)',
                                                         display: 'block'
                                                     }}>
@@ -520,35 +520,36 @@ export default function Dashboard() {
                                                     </span>
                                                     {extraCount > 0 ? (
                                                         <span style={{ 
-                                                            fontSize: '10px', 
-                                                            background: '#e0f2fe', 
-                                                            color: '#0369a1', 
-                                                            padding: '2px 5px', 
-                                                            borderRadius: '4px', 
-                                                            fontWeight: '600',
-                                                            display: 'inline-block',
-                                                            marginTop: '2px'
-                                                        }}>
-                                                            1 + {extraCount} Extra
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Single</span>
-                                                    )}
+                                                             fontSize: '9.5px', 
+                                                             background: '#e0f2fe', 
+                                                             color: '#0369a1', 
+                                                             padding: '1px 5px', 
+                                                             borderRadius: '3px', 
+                                                             fontWeight: '600',
+                                                             display: 'inline-block',
+                                                             marginTop: '2px',
+                                                             whiteSpace: 'nowrap'
+                                                         }}>
+                                                             1+{extraCount}
+                                                         </span>
+                                                     ) : (
+                                                         <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>Single</span>
+                                                     )}
                                                 </td>
-                                                <td>
-                                                    <div style={{ fontWeight: '500' }}>{v.hostName}</div>
-                                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{v.purpose || 'Visit'}</div>
+                                                <td style={{ overflow: 'hidden' }}>
+                                                    <div style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.hostName}>{v.hostName}</div>
+                                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.purpose || 'Visit'}>{v.purpose || 'Visit'}</div>
                                                 </td>
-                                                <td>
-                                                    <div style={{ fontWeight: '600', fontSize: '11px' }}>{formatTime(v.checkInTime)}</div>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                    <div style={{ fontWeight: '600', fontSize: '11.5px', whiteSpace: 'nowrap' }}>{formatTime(v.checkInTime)}</div>
                                                 </td>
-                                                <td>
+                                                <td style={{ whiteSpace: 'nowrap' }}>
                                                     {v.checkOutTime ? (
-                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                                                        <div style={{ color: 'var(--text-secondary)', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
                                                             {formatTime(v.checkOutTime)}
                                                         </div>
                                                     ) : (
-                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '10.5px' }}>
+                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                             Active
                                                         </span>
                                                     )}
