@@ -83,11 +83,17 @@ export default function Visitors() {
         XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateStr}.xlsx`);
     };
 
-    const formatDateTime = (isoString) => {
+    const formatTime = (isoString) => {
         if (!isoString) return '-';
-        return new Date(isoString).toLocaleString([], {
-            month: 'short', day: 'numeric', 
-            hour: '2-digit', minute:'2-digit'
+        return new Date(isoString).toLocaleTimeString([], {
+            hour: '2-digit', minute: '2-digit'
+        });
+    };
+
+    const formatDate = (isoString) => {
+        if (!isoString) return '';
+        return new Date(isoString).toLocaleDateString([], {
+            month: 'short', day: 'numeric'
         });
     };
 
@@ -225,17 +231,17 @@ export default function Visitors() {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-                                <th>Visitor ID</th>
+                                <th style={{ width: '32px', textAlign: 'center' }}>#</th>
+                                <th style={{ width: '115px' }}>Visitor ID</th>
                                 <th>Visitor</th>
-                                <th style={{ textAlign: 'center' }}>Persons</th>
-                                <th>Phone</th>
-                                <th>ID Proof</th>
+                                <th style={{ width: '55px', textAlign: 'center' }}>Persons</th>
+                                <th style={{ width: '100px' }}>Phone</th>
+                                <th style={{ width: '115px' }}>ID Proof</th>
                                 <th>To Meet</th>
-                                <th>Vehicle</th>
-                                <th>Check-In</th>
-                                <th>Check-Out</th>
-                                <th>Status</th>
+                                <th style={{ width: '85px' }}>Vehicle</th>
+                                <th style={{ width: '85px' }}>Check-In</th>
+                                <th style={{ width: '85px' }}>Check-Out</th>
+                                <th style={{ width: '95px' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -368,14 +374,30 @@ export default function Visitors() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span style={{ fontSize: '12.5px', fontWeight: '500' }}>
-                                                        {formatDateTime(v.checkInTime)}
-                                                    </span>
+                                                    <div style={{ lineHeight: '1.25' }}>
+                                                        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', display: 'block' }}>
+                                                            {formatTime(v.checkInTime)}
+                                                        </span>
+                                                        <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
+                                                            {formatDate(v.checkInTime)}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td>
-                                                    <span style={{ fontSize: '12.5px', color: v.checkOutTime ? 'var(--text-primary)' : 'var(--success)' }}>
-                                                        {v.checkOutTime ? formatDateTime(v.checkOutTime) : 'Active Inside'}
-                                                    </span>
+                                                    {v.checkOutTime ? (
+                                                        <div style={{ lineHeight: '1.25' }}>
+                                                            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', display: 'block' }}>
+                                                                {formatTime(v.checkOutTime)}
+                                                            </span>
+                                                            <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
+                                                                {formatDate(v.checkOutTime)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px' }}>
+                                                            Active Inside
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
@@ -433,14 +455,30 @@ export default function Visitors() {
                                                         {v.vehicleNo || 'No'}
                                                     </td>
                                                     <td>
-                                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                            {formatDateTime(v.checkInTime)}
-                                                        </span>
+                                                        <div style={{ lineHeight: '1.25' }}>
+                                                            <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'block' }}>
+                                                                {formatTime(v.checkInTime)}
+                                                            </span>
+                                                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                                {formatDate(v.checkInTime)}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td>
-                                                        <span style={{ fontSize: '12px', color: v.checkOutTime ? 'var(--text-secondary)' : 'var(--success)' }}>
-                                                            {v.checkOutTime ? formatDateTime(v.checkOutTime) : 'Active Inside'}
-                                                        </span>
+                                                        {v.checkOutTime ? (
+                                                            <div style={{ lineHeight: '1.25' }}>
+                                                                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'block' }}>
+                                                                    {formatTime(v.checkOutTime)}
+                                                                </span>
+                                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                                    {formatDate(v.checkOutTime)}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: 'var(--success)', fontSize: '11px' }}>
+                                                                Active Inside
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>

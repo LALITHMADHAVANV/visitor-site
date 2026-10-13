@@ -160,13 +160,21 @@ export default function Dashboard() {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                setPreviewVisitor(null);
-                setScanPopup(null);
+                if (scanPopup) setScanPopup(null);
+                if (previewVisitor) setPreviewVisitor(null);
+            } else if (e.key === 'Enter') {
+                if (scanPopup) {
+                    e.preventDefault();
+                    setScanPopup(null);
+                } else if (previewVisitor) {
+                    e.preventDefault();
+                    setPreviewVisitor(null);
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [scanPopup, previewVisitor]);
 
     // Filtered visitors according to search & active tab
     const filteredVisitors = useMemo(() => {
@@ -352,15 +360,15 @@ export default function Dashboard() {
                         <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-                                    <th>Visitor ID</th>
+                                    <th style={{ width: '32px', textAlign: 'center' }}>#</th>
+                                    <th style={{ width: '120px' }}>Visitor ID</th>
                                     <th>Visitor Details</th>
-                                    <th style={{ textAlign: 'center' }}>Persons</th>
+                                    <th style={{ width: '55px', textAlign: 'center' }}>Persons</th>
                                     <th>To Meet</th>
-                                    <th>Check In</th>
-                                    <th>Check Out</th>
-                                    <th>Status</th>
-                                    <th style={{ textAlign: 'right' }}>Actions</th>
+                                    <th style={{ width: '85px' }}>Check In</th>
+                                    <th style={{ width: '85px' }}>Check Out</th>
+                                    <th style={{ width: '95px' }}>Status</th>
+                                    <th style={{ width: '115px', textAlign: 'right' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1005,8 +1013,10 @@ export default function Dashboard() {
                             <button 
                                 className="btn btn-primary btn-sm"
                                 onClick={() => setScanPopup(null)}
+                                title="Close popup (Enter)"
                             >
-                                Done
+                                <i className="fa-solid fa-arrow-turn-down fa-rotate-90" style={{ fontSize: '11px', marginRight: '5px' }}></i>
+                                <span>Enter</span>
                             </button>
                         </div>
                     </div>
