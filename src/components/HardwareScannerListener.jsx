@@ -59,6 +59,9 @@ export default function HardwareScannerListener() {
         contentRef: badgeRef,
         documentTitle: printVisitor ? `Visitor_Badge_${printVisitor.id}` : 'Visitor_Badge',
         pageStyle: THERMAL_80MM_PAGE_STYLE,
+        onAfterPrint: () => {
+            window.dispatchEvent(new CustomEvent('visitor-print-completed'));
+        },
     });
 
     const triggerAutoPrint = (visitorToPrint) => {
