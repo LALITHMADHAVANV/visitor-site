@@ -784,26 +784,9 @@ export default function Register({ isKiosk = false }) {
 
                         {/* Form Fields */}
                         <div className="fields-section">
-                            {/* Row 1: Visitor ID & Full Name */}
+                            {/* Row 1: Full Name */}
                             <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label-header">
-                                        <span className="label-title">
-                                            <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
-                                            Visitor ID / Badge No
-                                        </span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="visitorNo"
-                                        value={formData.visitorNo}
-                                        onChange={handleChange}
-                                        placeholder="Enter Visitor ID / Badge No"
-                                        className="mono-bold-input"
-                                    />
-                                </div>
-
-                                <div className="form-group">
+                                <div className="form-group full-width">
                                     <label className="form-label-header">
                                         <span className="label-title">Full Name *</span>
                                     </label>
@@ -1109,6 +1092,26 @@ export default function Register({ isKiosk = false }) {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Row 6: Visitor ID / Badge No (Placed last under extra members) */}
+                            <div className="form-row">
+                                <div className="form-group full-width">
+                                    <label className="form-label-header">
+                                        <span className="label-title">
+                                            <i className="fa-solid fa-id-badge" style={{ color: 'var(--accent-primary)' }}></i>
+                                            Visitor ID / Badge No
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="visitorNo"
+                                        value={formData.visitorNo}
+                                        onChange={handleChange}
+                                        placeholder="Enter Visitor ID / Badge No"
+                                        className="mono-bold-input"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
