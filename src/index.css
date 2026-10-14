@@ -452,6 +452,12 @@ h4 {
   border: 1px solid var(--warning-border);
 }
 
+.status-registered {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
 /* Avatars */
 .avatar-sm {
   width: 26px;

@@ -97,6 +97,46 @@ export default function Visitors() {
         });
     };
 
+    const renderStatusBadge = (status) => {
+        if (status === 'checked-in') {
+            return (
+                <span className="status-badge status-in">
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '9px' }}></i>
+                    Inside
+                </span>
+            );
+        }
+        if (status === 'checked-out') {
+            return (
+                <span className="status-badge status-out">
+                    <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: '9px' }}></i>
+                    Checked Out
+                </span>
+            );
+        }
+        if (status === 'registered') {
+            return (
+                <span className="status-badge status-registered" title="Registered (Awaiting Security Check-In)">
+                    <i className="fa-solid fa-id-card" style={{ fontSize: '9px' }}></i>
+                    Registered
+                </span>
+            );
+        }
+        if (status === 'expected') {
+            return (
+                <span className="status-badge status-expected" title="Pre-registered / Expected Visitor">
+                    <i className="fa-solid fa-calendar-day" style={{ fontSize: '9px' }}></i>
+                    Expected
+                </span>
+            );
+        }
+        return (
+            <span className="status-badge status-out">
+                {status || '-'}
+            </span>
+        );
+    };
+
     const hasActiveFilters = searchTerm !== '' || filterStatus !== 'all' || filterDate !== '';
 
     const resetFilters = () => {
@@ -183,6 +223,7 @@ export default function Visitors() {
                             <option value="all">All Statuses</option>
                             <option value="checked-in">Currently Inside</option>
                             <option value="checked-out">Checked Out</option>
+                            <option value="registered">Registered (Pending)</option>
                         </select>
 
                         {/* Date Filter */}
@@ -394,17 +435,18 @@ export default function Visitors() {
                                                                 {formatDate(v.checkOutTime)}
                                                             </span>
                                                         </div>
-                                                    ) : (
+                                                    ) : v.status === 'checked-in' ? (
                                                         <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                             Active Inside
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                            -
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td style={{ whiteSpace: 'nowrap' }}>
-                                                    <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
-                                                        {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
-                                                    </span>
+                                                    {renderStatusBadge(v.status)}
                                                 </td>
                                             </tr>
                                             {/* Accompanying Members Sub-rows: Show Visitor ID number only */}
@@ -475,17 +517,18 @@ export default function Visitors() {
                                                                     {formatDate(v.checkOutTime)}
                                                                 </span>
                                                             </div>
-                                                        ) : (
+                                                        ) : v.status === 'checked-in' ? (
                                                             <span style={{ color: 'var(--success)', fontSize: '11px' }}>
                                                                 Active Inside
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                                                -
                                                             </span>
                                                         )}
                                                     </td>
                                                     <td>
-                                                        <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                                                            <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
-                                                            {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
-                                                        </span>
+                                                        {renderStatusBadge(v.status)}
                                                     </td>
                                                 </tr>
                                             ))}

@@ -164,6 +164,68 @@ export default function Dashboard() {
         }
     };
 
+    const handleCheckInVisitor = async (visitor) => {
+        try {
+            const checkInTime = new Date().toISOString();
+            await db.visitors.update(visitor.id, {
+                status: 'checked-in',
+                checkInTime
+            });
+            fetchDashboardData();
+            const updated = await db.visitors.get(visitor.id);
+            if (updated) {
+                setScanPopup({
+                    visitor: updated,
+                    action: 'checkin',
+                    timestamp: checkInTime
+                });
+            }
+        } catch (err) {
+            console.error("Check in visitor error:", err);
+            alert("Failed to check in visitor.");
+        }
+    };
+
+    const renderStatusBadge = (status) => {
+        if (status === 'checked-in') {
+            return (
+                <span className="status-badge status-in">
+                    <i className="fa-solid fa-circle-check" style={{ fontSize: '9px' }}></i>
+                    Inside
+                </span>
+            );
+        }
+        if (status === 'checked-out') {
+            return (
+                <span className="status-badge status-out">
+                    <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: '9px' }}></i>
+                    Checked Out
+                </span>
+            );
+        }
+        if (status === 'registered') {
+            return (
+                <span className="status-badge status-registered" title="Registered (Awaiting Security Check-In)">
+                    <i className="fa-solid fa-id-card" style={{ fontSize: '9px' }}></i>
+                    Registered
+                </span>
+            );
+        }
+        if (status === 'expected') {
+            return (
+                <span className="status-badge status-expected" title="Pre-registered / Expected Visitor">
+                    <i className="fa-solid fa-calendar-day" style={{ fontSize: '9px' }}></i>
+                    Expected
+                </span>
+            );
+        }
+        return (
+            <span className="status-badge status-out">
+                {status || '-'}
+            </span>
+        );
+    };
+
     const formatTime = (isoString) => {
         if (!isoString) return '-';
         return new Date(isoString).toLocaleTimeString([], {
@@ -691,26 +753,37 @@ export default function Dashboard() {
                                                 </td>
                                                 <td style={{ whiteSpace: 'nowrap' }}>
                                                     <div style={{ fontWeight: '600', fontSize: '11.5px', whiteSpace: 'nowrap' }}>{formatTime(v.checkInTime)}</div>
-                                                </td>
-                                                <td style={{ whiteSpace: 'nowrap' }}>
+                                                </td>                                                <td style={{ whiteSpace: 'nowrap' }}>
                                                     {v.checkOutTime ? (
                                                         <div style={{ color: 'var(--text-secondary)', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
                                                             {formatTime(v.checkOutTime)}
                                                         </div>
-                                                    ) : (
+                                                    ) : v.status === 'checked-in' ? (
                                                         <span style={{ color: 'var(--success)', fontWeight: '600', fontSize: '11px', whiteSpace: 'nowrap' }}>
                                                             Active
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                            -
                                                         </span>
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                        <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
-                                                        {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
-                                                    </span>
+                                                    {renderStatusBadge(v.status)}
                                                 </td>
                                                 <td style={{ textAlign: 'right', paddingRight: '14px' }}>
                                                     <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                                                         {v.status === 'registered' && (
+                                                             <button 
+                                                                 className="btn btn-primary btn-sm"
+                                                                 onClick={() => handleCheckInVisitor(v)}
+                                                                 title="Check In Visitor"
+                                                                 style={{ padding: '2px 8px', fontSize: '10.5px', whiteSpace: 'nowrap', background: '#0284c7', borderColor: '#0284c7' }}
+                                                             >
+                                                                 <i className="fa-solid fa-arrow-right-to-bracket" style={{ fontSize: '9.5px', marginRight: '3px' }}></i>
+                                                                 <span>Check In</span>
+                                                             </button>
+                                                         )}
                                                          {v.status === 'checked-in' && (
                                                              <button 
                                                                  className="btn btn-outline btn-sm"
@@ -730,8 +803,9 @@ export default function Dashboard() {
                                                          >
                                                              <i className="fa-solid fa-print"></i>
                                                          </button>
-                                                     </div>
+                                                    </div>
                                                 </td>
+
                                             </tr>
                                             {/* Accompanying Members Sub-rows: Show Visitor ID number only */}
                                             {extraCount > 0 && accompanyingIds.map((accId, accIdx) => (
@@ -777,14 +851,11 @@ export default function Dashboard() {
                                                     </td>
                                                     <td>
                                                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                            {v.checkOutTime ? formatTime(v.checkOutTime) : <span style={{ color: 'var(--success)', fontWeight: '500' }}>Active</span>}
+                                                            {v.checkOutTime ? formatTime(v.checkOutTime) : v.status === 'checked-in' ? <span style={{ color: 'var(--success)', fontWeight: '500' }}>Active</span> : <span style={{ color: 'var(--text-muted)' }}>-</span>}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span className={`status-badge ${v.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
-                                                            <i className={`fa-solid ${v.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`} style={{ fontSize: '9px' }}></i>
-                                                            {v.status === 'checked-in' ? 'Inside' : 'Checked Out'}
-                                                        </span>
+                                                        {renderStatusBadge(v.status)}
                                                     </td>
                                                     <td style={{ textAlign: 'right', paddingRight: '14px' }}>
                                                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
@@ -837,10 +908,9 @@ export default function Dashboard() {
                                         alt={previewVisitor.name} 
                                         className="visitor-modal-photo"
                                     />
-                                    <span className={`status-badge ${previewVisitor.status === 'checked-in' ? 'status-in' : 'status-out'}`} style={{ marginTop: '8px', fontSize: '11px' }}>
-                                        <i className={`fa-solid ${previewVisitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
-                                        {previewVisitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
-                                    </span>
+                                    <div style={{ marginTop: '8px' }}>
+                                        {renderStatusBadge(previewVisitor.status)}
+                                    </div>
                                 </div>
 
                                 <div className="visitor-modal-identity-info">
@@ -1210,10 +1280,7 @@ export default function Dashboard() {
                                                     <i className="fa-solid fa-id-badge" style={{ marginRight: '4px' }}></i>
                                                     {scanPopup.visitor.visitorNo || scanPopup.visitor.id}
                                                 </span>
-                                                <span className={`status-badge ${scanPopup.visitor.status === 'checked-in' ? 'status-in' : 'status-out'}`}>
-                                                    <i className={`fa-solid ${scanPopup.visitor.status === 'checked-in' ? 'fa-circle-check' : 'fa-arrow-right-from-bracket'}`}></i>
-                                                    {scanPopup.visitor.status === 'checked-in' ? 'Currently Inside' : 'Checked Out'}
-                                                </span>
+                                                {renderStatusBadge(scanPopup.visitor.status)}
                                                 {isOldVisitor(scanPopup.visitor) ? (
                                                     <span className="badge-tag-returning" style={{ padding: '2px 8px', fontSize: '11px' }}>
                                                         <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '4px' }}></i> Returning

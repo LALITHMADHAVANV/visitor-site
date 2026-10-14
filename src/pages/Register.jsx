@@ -89,6 +89,7 @@ export default function Register({ isKiosk = false }) {
     const [successQR, setSuccessQR] = useState(null);
     const [registeredVisitor, setRegisteredVisitor] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const isSubmittingRef = useRef(false);
     const [finding, setFinding] = useState(false);
     const [findResult, setFindResult] = useState(null); // 'found', 'not-found', null
 
@@ -309,8 +310,8 @@ export default function Register({ isKiosk = false }) {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (submitting) return;
+        if (e) e.preventDefault();
+        if (isSubmittingRef.current || submitting) return;
 
         // 1. Phone number validation: strictly exactly 10 digits
         const phoneDigits = formData.phone.trim();
@@ -335,24 +336,6 @@ export default function Register({ isKiosk = false }) {
             return;
         }
 
-        // 3. Duplicate check for active visits (Phone Number and ID Proof Number)
-        try {
-            const allVisitors = await db.visitors.toArray();
-            const activeVisitor = allVisitors.find(v =>
-                v.status === 'checked-in' && (
-                    v.phone === phoneDigits ||
-                    (v.idNumber && v.idNumber.trim().toUpperCase() === idNumberTrimmed.toUpperCase())
-                )
-            );
-            if (activeVisitor) {
-                const matchType = activeVisitor.phone === phoneDigits ? `Phone Number (${phoneDigits})` : `ID Proof Number (${idNumberTrimmed})`;
-                alert(`Cannot register: A visitor with this ${matchType} (${activeVisitor.name || 'Visitor'}) is currently checked in. They must check out before registering again.`);
-                return;
-            }
-        } catch (err) {
-            console.warn("Could not check active visitor records:", err);
-        }
-
         // 3. Vehicle validation
         if (formData.hasVehicle === 'yes' && (!formData.vehicleNo.trim() || formData.vehicleNo === 'No')) {
             alert("Please enter the vehicle registration number.");
@@ -372,7 +355,43 @@ export default function Register({ isKiosk = false }) {
             }
         }
 
+        // Lock submission immediately before async operations
+        isSubmittingRef.current = true;
         setSubmitting(true);
+
+        // 5. Duplicate check for active visits & rapid duplicate submissions (Phone Number and ID Proof Number)
+        try {
+            const allVisitors = await db.visitors.toArray();
+            const nowTime = Date.now();
+            const activeVisitor = allVisitors.find(v => {
+                const isPhoneMatch = v.phone === phoneDigits;
+                const isIdMatch = v.idNumber && v.idNumber.trim().toUpperCase() === idNumberTrimmed.toUpperCase();
+                if (!isPhoneMatch && !isIdMatch) return false;
+
+                // Active visit inside premises
+                if (v.status === 'checked-in') return true;
+
+                // Rapid duplicate prevention: block duplicate within 30 seconds
+                const createdAtTime = new Date(v.created_at || 0).getTime();
+                if (nowTime - createdAtTime < 30000) return true;
+
+                return false;
+            });
+
+            if (activeVisitor) {
+                const matchType = activeVisitor.phone === phoneDigits ? `Phone Number (${phoneDigits})` : `ID Proof Number (${idNumberTrimmed})`;
+                if (activeVisitor.status === 'checked-in') {
+                    alert(`Cannot register: A visitor with this ${matchType} (${activeVisitor.name || 'Visitor'}) is currently checked in. They must check out before registering again.`);
+                } else {
+                    alert(`Notice: This visitor (${activeVisitor.name || 'Visitor'}) was already registered moments ago. Duplicate registration was prevented.`);
+                }
+                isSubmittingRef.current = false;
+                setSubmitting(false);
+                return;
+            }
+        } catch (err) {
+            console.warn("Could not check active visitor records:", err);
+        }
 
         try {
             // Generate a unique visit ID for primary key and QR pass
@@ -443,10 +462,12 @@ export default function Register({ isKiosk = false }) {
             alert("Error saving visitor data: " + (error.message || JSON.stringify(error)));
         } finally {
             setSubmitting(false);
+            isSubmittingRef.current = false;
         }
     };
 
     const handleNextVisitor = () => {
+        isSubmittingRef.current = false;
         setSuccessQR(null);
         setRegisteredVisitor(null);
         setVisitorStatus('registered');
