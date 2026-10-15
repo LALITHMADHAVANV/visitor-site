@@ -45,9 +45,21 @@ function normalizeVisitor(v) {
     return v;
 }
 
+let visitorsCache = null;
+let visitorsCacheTimestamp = 0;
+let visitorsInFlight = null;
+const CACHE_TTL_MS = 2500;
+
+export function invalidateVisitorsCache() {
+    visitorsCache = null;
+    visitorsCacheTimestamp = 0;
+    visitorsInFlight = null;
+}
+
 export const db = {
     visitors: {
         async add(visitor) {
+            invalidateVisitorsCache();
             const res = await fetch('/api/visitors', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -61,10 +73,29 @@ export const db = {
             return normalizeVisitor(data);
         },
         async toArray() {
-            const res = await fetch('/api/visitors');
-            if (!res.ok) throw new Error('Failed to fetch visitors from MongoDB');
-            const data = await res.json();
-            return (data || []).map(normalizeVisitor);
+            const now = Date.now();
+            if (visitorsCache && (now - visitorsCacheTimestamp < CACHE_TTL_MS)) {
+                return visitorsCache;
+            }
+            if (visitorsInFlight) {
+                return visitorsInFlight;
+            }
+
+            visitorsInFlight = (async () => {
+                try {
+                    const res = await fetch('/api/visitors');
+                    if (!res.ok) throw new Error('Failed to fetch visitors from MongoDB');
+                    const data = await res.json();
+                    const normalized = (data || []).map(normalizeVisitor);
+                    visitorsCache = normalized;
+                    visitorsCacheTimestamp = Date.now();
+                    return normalized;
+                } finally {
+                    visitorsInFlight = null;
+                }
+            })();
+
+            return visitorsInFlight;
         },
         async get(id) {
             const targetId = typeof id === 'object' && id !== null ? id.id : id;
@@ -75,6 +106,7 @@ export const db = {
             return normalizeVisitor(data);
         },
         async update(id, changes) {
+            invalidateVisitorsCache();
             const targetId = typeof id === 'object' && id !== null ? id.id : id;
             const res = await fetch(`/api/visitors?id=${encodeURIComponent(targetId)}`, {
                 method: 'PUT',
@@ -89,6 +121,7 @@ export const db = {
             return normalizeVisitor(data);
         },
         async delete(id) {
+            invalidateVisitorsCache();
             const targetId = typeof id === 'object' && id !== null ? id.id : id;
             const res = await fetch(`/api/visitors?id=${encodeURIComponent(targetId)}`, {
                 method: 'DELETE'

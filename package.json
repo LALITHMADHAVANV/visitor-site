@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "import:visitors": "node scripts/import_visitors.js",
+    "seed:db": "node scripts/seed_mongodb.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

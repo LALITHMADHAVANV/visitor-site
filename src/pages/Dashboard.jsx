@@ -84,8 +84,11 @@ export default function Dashboard() {
 
         window.addEventListener('visitor-scan-processed', handleScanProcessed);
 
-        // Periodic refresh every 3 seconds for live dashboard
-        const interval = setInterval(fetchDashboardData, 3000);
+        // Periodic refresh every 5 seconds for live dashboard (pause when tab hidden)
+        const interval = setInterval(() => {
+            if (document.hidden) return;
+            fetchDashboardData();
+        }, 5000);
 
         return () => {
             clearInterval(interval);
