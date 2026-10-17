@@ -51,12 +51,18 @@ export default function Dashboard() {
         setTimeout(() => handlePrint(), 100);
     };
 
+    const isFetchingRef = useRef(false);
+
     const fetchDashboardData = useCallback(async () => {
+        if (isFetchingRef.current || document.visibilityState === 'hidden') return;
+        isFetchingRef.current = true;
         try {
             const visitorsData = await db.visitors.toArray();
             setAllVisitors(visitorsData || []);
         } catch (error) {
             console.error("Error loading dashboard data:", error);
+        } finally {
+            isFetchingRef.current = false;
         }
     }, []);
 
@@ -84,8 +90,10 @@ export default function Dashboard() {
 
         window.addEventListener('visitor-scan-processed', handleScanProcessed);
 
-        // Periodic refresh every 3 seconds for live dashboard
-        const interval = setInterval(fetchDashboardData, 3000);
+        // Periodic refresh every 5 seconds for live dashboard (with in-flight guard)
+        const interval = setInterval(() => {
+            fetchDashboardData();
+        }, 5000);
 
         return () => {
             clearInterval(interval);
