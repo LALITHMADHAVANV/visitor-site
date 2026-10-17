@@ -201,17 +201,11 @@ export default function Register({ isKiosk = false }) {
         setFinding(true);
         setFindResult(null);
         try {
-            // Search in all visitors (Supabase) for this phone number, get the latest one
-            const allVisitors = await db.visitors.toArray();
-            const matches = allVisitors
-                .filter(v => v.phone === phone)
-                .sort((a, b) => {
-                    const timeA = new Date(a.checkInTime || a.created_at || 0).getTime();
-                    const timeB = new Date(b.checkInTime || b.created_at || 0).getTime();
-                    return timeB - timeA; // latest first
-                });
+            // Directly query this phone number from API with photo
+            const res = await fetch(`/api/visitors?phone=${encodeURIComponent(phone)}&withPhoto=true`);
+            const matches = res.ok ? await res.json() : [];
 
-            if (matches.length > 0) {
+            if (matches && matches.length > 0) {
                 const prev = matches[0];
                 // Auto-fill form fields from previous visit
                 setFormData(f => ({

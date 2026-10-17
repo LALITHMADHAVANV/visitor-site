@@ -17,6 +17,8 @@
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "firebase": "^12.18.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "mongodb": "^7.7.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",

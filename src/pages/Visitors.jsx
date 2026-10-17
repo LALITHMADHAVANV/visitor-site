@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../db';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../AuthContext';
@@ -7,25 +7,41 @@ import { getVisitorPhoto } from '../avatarUtils';
 export default function Visitors() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [filterDate, setFilterDate] = useState('');
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
     const [visitors, setVisitors] = useState([]);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
     const { user } = useAuth();
+    const isFetchingRef = useRef(false);
 
     useEffect(() => {
+        let isMounted = true;
+
         const load = async () => {
+            if (isFetchingRef.current || document.visibilityState === 'hidden') return;
+            isFetchingRef.current = true;
             try {
                 const data = await db.visitors.toArray();
-                setVisitors(data || []);
+                if (isMounted) {
+                    setVisitors(data || []);
+                }
             } catch (err) {
                 console.error("Error loading visitors:", err);
+            } finally {
+                isFetchingRef.current = false;
             }
         };
+
         load();
         const interval = setInterval(() => {
             if (document.hidden) return;
             load();
         }, 5000);
-        return () => clearInterval(interval);
+
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
     }, []);
 
     const filteredVisitors = useMemo(() => {
@@ -44,20 +60,31 @@ export default function Visitors() {
 
             const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
 
+            // From Date to To Date Range Filter
             let matchesDate = true;
-            if (filterDate) {
+            if (fromDate || toDate) {
                 const time = v.checkInTime || v.created_at;
                 if (!time) {
                     matchesDate = false;
                 } else {
-                    const vDate = new Date(time).toISOString().split('T')[0];
-                    matchesDate = vDate === filterDate;
+                    const d = new Date(time);
+                    if (isNaN(d.getTime())) {
+                        matchesDate = false;
+                    } else {
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const vDate = `${year}-${month}-${day}`;
+
+                        if (fromDate && vDate < fromDate) matchesDate = false;
+                        if (toDate && vDate > toDate) matchesDate = false;
+                    }
                 }
             }
 
             return matchesSearch && matchesStatus && matchesDate;
         }).sort((a, b) => new Date(b.checkInTime || 0) - new Date(a.checkInTime || 0));
-    }, [visitors, searchTerm, filterStatus, filterDate]);
+    }, [visitors, searchTerm, filterStatus, fromDate, toDate]);
 
     const exportToExcel = () => {
         if (user?.role !== 'admin') return;
@@ -73,7 +100,7 @@ export default function Visitors() {
             'Purpose of Visit': v.purpose || '-',
             'Vehicle Number': v.vehicleNo || 'No',
             'Extra Members': v.hasExtraMembers === 'yes' ? `${v.extraMembersCount} (${v.extraMembersIds || ''})` : 'No',
-            'Status': v.status === 'checked-in' ? 'Inside' : 'Checked Out',
+            'Status': v.status === 'checked-in' ? 'Inside' : (v.status === 'registered' ? 'Registered' : (v.status === 'expected' ? 'Expected' : 'Checked Out')),
             'Check-In Time': v.checkInTime ? new Date(v.checkInTime).toLocaleString() : '-',
             'Check-Out Time': v.checkOutTime ? new Date(v.checkOutTime).toLocaleString() : '-'
         }));
@@ -82,8 +109,155 @@ export default function Visitors() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Visitors");
 
-        const dateStr = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateStr}.xlsx`);
+        const dateRangeLabel = fromDate ? `${fromDate}_to_${toDate || 'latest'}` : (toDate ? `upto_${toDate}` : new Date().toISOString().split('T')[0]);
+        XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateRangeLabel}.xlsx`);
+    };
+
+    const exportToPDF = async () => {
+        if (user?.role !== 'admin') return;
+        setIsExportingPdf(true);
+        try {
+            const { jsPDF } = await import('jspdf');
+            const autoTable = (await import('jspdf-autotable')).default;
+
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'pt',
+                format: 'a4'
+            });
+
+            // Company Title and Header
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30, 41, 59); // slate-800
+            doc.text('ESSTEE EXPORTS - VISITOR HISTORY REPORT', 40, 36);
+
+            // Subtitle & Filter summary
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139); // slate-500
+            
+            const filterParts = [];
+            if (fromDate && toDate) {
+                filterParts.push(`Date Range: ${fromDate} to ${toDate}`);
+            } else if (fromDate) {
+                filterParts.push(`From Date: ${fromDate}`);
+            } else if (toDate) {
+                filterParts.push(`To Date: ${toDate}`);
+            } else {
+                filterParts.push(`Date: All Time`);
+            }
+            if (filterStatus !== 'all') {
+                filterParts.push(`Status: ${filterStatus === 'checked-in' ? 'Inside' : filterStatus}`);
+            }
+            if (searchTerm.trim()) {
+                filterParts.push(`Search: "${searchTerm.trim()}"`);
+            }
+            filterParts.push(`Records: ${filteredVisitors.length}`);
+            filterParts.push(`Exported: ${new Date().toLocaleString()}`);
+
+            doc.text(filterParts.join('   |   '), 40, 52);
+
+            // Table headers and body
+            const tableHeaders = [
+                ['#', 'Visitor ID', 'Visitor Name', 'Company', 'Persons', 'Phone', 'ID Proof', 'To Meet', 'Vehicle', 'Check-In', 'Check-Out', 'Status']
+            ];
+
+            const tableRows = filteredVisitors.map((v, index) => {
+                const extraCount = v.hasExtraMembers === 'yes' ? (parseInt(v.extraMembersCount, 10) || 0) : 0;
+                const totalPersons = 1 + extraCount;
+                
+                let idProof = '-';
+                if (v.idType || v.idNumber) {
+                    idProof = `${v.idType || ''} ${v.idNumber ? '(' + v.idNumber + ')' : ''}`.trim();
+                }
+
+                let statusText = 'Checked Out';
+                if (v.status === 'checked-in') statusText = 'Inside';
+                else if (v.status === 'registered') statusText = 'Registered';
+                else if (v.status === 'expected') statusText = 'Expected';
+
+                const inTime = v.checkInTime ? new Date(v.checkInTime).toLocaleString([], {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : '-';
+
+                const outTime = v.checkOutTime ? new Date(v.checkOutTime).toLocaleString([], {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : (v.status === 'checked-in' ? 'Active Inside' : '-');
+
+                return [
+                    index + 1,
+                    v.visitorNo || v.id,
+                    v.name || '-',
+                    v.company || '-',
+                    totalPersons > 1 ? `${totalPersons} (1+${extraCount})` : '1',
+                    v.phone || '-',
+                    idProof,
+                    v.hostName || '-',
+                    v.vehicleNo || 'No',
+                    inTime,
+                    outTime,
+                    statusText
+                ];
+            });
+
+            autoTable(doc, {
+                startY: 64,
+                head: tableHeaders,
+                body: tableRows,
+                theme: 'striped',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 4.5,
+                    overflow: 'linebreak',
+                    textColor: [30, 41, 59],
+                    valign: 'middle'
+                },
+                headStyles: {
+                    fillColor: [37, 99, 235], // royal blue #2563eb
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 8.5,
+                    halign: 'left'
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252] // slate-50
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 24 }, // #
+                    1: { cellWidth: 72, fontStyle: 'bold' }, // Visitor ID
+                    2: { cellWidth: 80, fontStyle: 'bold' }, // Name
+                    3: { cellWidth: 72 }, // Company
+                    4: { halign: 'center', cellWidth: 38 }, // Persons
+                    5: { cellWidth: 62 }, // Phone
+                    6: { cellWidth: 80 }, // ID Proof
+                    7: { cellWidth: 74 }, // To Meet
+                    8: { cellWidth: 48 }, // Vehicle
+                    9: { cellWidth: 75 }, // Check-In
+                    10: { cellWidth: 75 }, // Check-Out
+                    11: { halign: 'center', cellWidth: 55 } // Status
+                },
+                didDrawPage: (data) => {
+                    const pageCount = doc.internal.getNumberOfPages();
+                    doc.setFontSize(8);
+                    doc.setTextColor(148, 163, 184);
+                    doc.text(
+                        `Page ${data.pageNumber} of ${pageCount}  •  Esstee Exports Visitor Management System`,
+                        doc.internal.pageSize.getWidth() / 2,
+                        doc.internal.pageSize.getHeight() - 15,
+                        { align: 'center' }
+                    );
+                }
+            });
+
+            const dateRangeLabel = fromDate ? `${fromDate}_to_${toDate || 'latest'}` : (toDate ? `upto_${toDate}` : new Date().toISOString().split('T')[0]);
+            doc.save(`Esstee_Visitors_Report_${dateRangeLabel}.pdf`);
+        } catch (error) {
+            console.error('Failed to generate PDF:', error);
+            alert('Failed to generate PDF report: ' + error.message);
+        } finally {
+            setIsExportingPdf(false);
+        }
     };
 
     const formatTime = (isoString) => {
@@ -140,12 +314,13 @@ export default function Visitors() {
         );
     };
 
-    const hasActiveFilters = searchTerm !== '' || filterStatus !== 'all' || filterDate !== '';
+    const hasActiveFilters = searchTerm !== '' || filterStatus !== 'all' || fromDate !== '' || toDate !== '';
 
     const resetFilters = () => {
         setSearchTerm('');
         setFilterStatus('all');
-        setFilterDate('');
+        setFromDate('');
+        setToDate('');
     };
 
     return (
@@ -161,9 +336,9 @@ export default function Visitors() {
                     flexWrap: 'wrap',
                     gap: '14px'
                 }}>
-                    <div style={{ display: 'flex', gap: '10px', flex: 1, minWidth: '320px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '10px', flex: 1, minWidth: '320px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {/* Search Input */}
-                        <div style={{ position: 'relative', flex: 1, minWidth: '240px', maxWidth: '380px' }}>
+                        <div style={{ position: 'relative', flex: 1, minWidth: '220px', maxWidth: '340px' }}>
                             <i className="fa-solid fa-search" style={{
                                 position: 'absolute',
                                 left: '12px',
@@ -215,7 +390,7 @@ export default function Visitors() {
                             style={{
                                 border: '1px solid var(--border-color)',
                                 borderRadius: '8px',
-                                padding: '8px 14px',
+                                padding: '8px 12px',
                                 fontSize: '13px',
                                 background: '#f8fafc',
                                 color: 'var(--text-primary)',
@@ -229,43 +404,88 @@ export default function Visitors() {
                             <option value="registered">Registered (Pending)</option>
                         </select>
 
-                        {/* Date Filter */}
-                        <input
-                            type="date"
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
-                            style={{
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '8px',
-                                padding: '8px 12px',
-                                fontSize: '13px',
-                                background: '#f8fafc',
-                                color: 'var(--text-primary)',
-                                outline: 'none'
-                            }}
-                        />
+                        {/* From Date Filter */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>From</span>
+                            <input
+                                id="filter-from-date"
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => setFromDate(e.target.value)}
+                                title="Filter from date"
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    padding: '6px 4px',
+                                    fontSize: '12.5px',
+                                    color: 'var(--text-primary)',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                        </div>
+
+                        {/* To Date Filter */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px 8px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>To</span>
+                            <input
+                                id="filter-to-date"
+                                type="date"
+                                value={toDate}
+                                min={fromDate || undefined}
+                                onChange={(e) => setToDate(e.target.value)}
+                                title="Filter up to date"
+                                style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    padding: '6px 4px',
+                                    fontSize: '12.5px',
+                                    color: 'var(--text-primary)',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                        </div>
 
                         {hasActiveFilters && (
                             <button
                                 className="btn btn-secondary btn-sm"
                                 onClick={resetFilters}
                                 title="Reset all filters"
+                                style={{ padding: '7px 12px', fontSize: '12px' }}
                             >
                                 <i className="fa-solid fa-arrow-rotate-left"></i> Reset
                             </button>
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
                             {filteredVisitors.length} {filteredVisitors.length === 1 ? 'record' : 'records'}
                         </span>
 
                         {user?.role === 'admin' && (
-                            <button className="btn btn-secondary btn-sm" onClick={exportToExcel} title="Export to Excel Spreadsheet">
-                                <i className="fa-solid fa-file-excel" style={{ color: '#059669' }}></i>
-                                <span>Export Excel</span>
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={exportToPDF}
+                                    disabled={isExportingPdf}
+                                    title="Export filtered records as PDF document"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                >
+                                    <i className={isExportingPdf ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-file-pdf"} style={{ color: '#dc2626' }}></i>
+                                    <span>{isExportingPdf ? 'Exporting...' : 'Export PDF'}</span>
+                                </button>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={exportToExcel}
+                                    title="Export to Excel Spreadsheet"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                >
+                                    <i className="fa-solid fa-file-excel" style={{ color: '#059669' }}></i>
+                                    <span>Export Excel</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

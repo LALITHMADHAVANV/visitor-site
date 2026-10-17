@@ -14,9 +14,6 @@ function normalizeVisitor(v) {
     if (v.photo && !v.photoData) {
         v.photoData = v.photo;
     }
-    if (!v.photoData && (v.name || v.visitorNo || v.id)) {
-        v.photoData = generateNameAvatar(v.name || v.visitorNo || v.id);
-    }
     // Extract ID tag if not present
     if ((!v.idType || !v.idNumber) && v.purpose && v.purpose.includes('[ID:')) {
         const match = v.purpose.match(/\[ID:\s*([^\]\-]+?)(?:\s*-\s*([^\]]+))?\]/);
