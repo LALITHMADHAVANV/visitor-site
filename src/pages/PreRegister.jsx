@@ -34,7 +34,10 @@ export default function PreRegister() {
             setHostList(list);
         };
         loadHosts();
-        const interval = setInterval(fetchPreregistered, 3000);
+        const interval = setInterval(() => {
+            if (document.hidden) return;
+            fetchPreregistered();
+        }, 5000);
         return () => clearInterval(interval);
     }, []);
 

@@ -92,6 +92,9 @@ export default function Dashboard() {
 
         // Periodic refresh every 5 seconds for live dashboard (with in-flight guard)
         const interval = setInterval(() => {
+        // Periodic refresh every 5 seconds for live dashboard (pause when tab hidden)
+        const interval = setInterval(() => {
+            if (document.hidden) return;
             fetchDashboardData();
         }, 5000);
 

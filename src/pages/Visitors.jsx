@@ -41,6 +41,10 @@ export default function Visitors() {
             isMounted = false;
             clearInterval(interval);
         };
+            if (document.hidden) return;
+            load();
+        }, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     const filteredVisitors = useMemo(() => {
