@@ -14,8 +14,7 @@ export default async function handler(req, res) {
         const collection = await getCollection('visitors');
 
         if (req.method === 'GET') {
-            const { id, visitorNo, phone, startsWith, field, value, withPhoto } = req.query || {};
-            const listProjection = (withPhoto === 'true') ? {} : { photoData: 0, photo_data: 0, photo: 0 };
+            const { id, visitorNo, phone, startsWith, field, value } = req.query || {};
 
             if (id) {
                 const cleanId = String(id).trim();
@@ -46,12 +45,12 @@ export default async function handler(req, res) {
             }
 
             if (phone) {
-                const visitors = await collection.find({ phone: String(phone).trim() }, { projection: listProjection }).sort({ created_at: -1 }).toArray();
+                const visitors = await collection.find({ phone: String(phone).trim() }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
             if (startsWith) {
-                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }, { projection: listProjection }).toArray();
+                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
@@ -62,11 +61,11 @@ export default async function handler(req, res) {
                         { [field]: cleanVal },
                         { [field]: { $regex: `^${cleanVal}$`, $options: 'i' } }
                     ]
-                }, { projection: listProjection }).sort({ created_at: -1 }).toArray();
+                }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
-            const visitors = await collection.find({}, { projection: listProjection }).sort({ created_at: -1 }).toArray();
+            const visitors = await collection.find({}).sort({ created_at: -1 }).toArray();
             return res.status(200).json(visitors.map(normalizeDoc));
         }
 
