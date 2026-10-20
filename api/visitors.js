@@ -14,7 +14,7 @@ export default async function handler(req, res) {
         const collection = await getCollection('visitors');
 
         if (req.method === 'GET') {
-            const { id, visitorNo, phone, startsWith, field, value, includePhoto } = req.query || {};
+            const { id, visitorNo, phone, startsWith, field, value } = req.query || {};
 
             if (id) {
                 const cleanId = String(id).trim();
@@ -48,12 +48,12 @@ export default async function handler(req, res) {
             const projection = includePhoto === 'true' ? {} : { photoData: 0, photo: 0, photo_data: 0 };
 
             if (phone) {
-                const visitors = await collection.find({ phone: String(phone).trim() }, { projection }).sort({ created_at: -1 }).toArray();
+                const visitors = await collection.find({ phone: String(phone).trim() }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
             if (startsWith) {
-                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }, { projection }).toArray();
+                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
@@ -64,11 +64,11 @@ export default async function handler(req, res) {
                         { [field]: cleanVal },
                         { [field]: { $regex: `^${cleanVal}$`, $options: 'i' } }
                     ]
-                }, { projection }).sort({ created_at: -1 }).toArray();
+                }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
-            const visitors = await collection.find({}, { projection }).sort({ created_at: -1 }).toArray();
+            const visitors = await collection.find({}).sort({ created_at: -1 }).toArray();
             return res.status(200).json(visitors.map(normalizeDoc));
         }
 
