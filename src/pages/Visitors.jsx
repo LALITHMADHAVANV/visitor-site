@@ -36,7 +36,7 @@ export default function Visitors() {
         const interval = setInterval(() => {
             if (document.hidden) return;
             load();
-        }, 5000);
+        }, 20000);
 
         return () => {
             isMounted = false;

@@ -45,7 +45,7 @@ function normalizeVisitor(v) {
 let visitorsCache = null;
 let visitorsCacheTimestamp = 0;
 let visitorsInFlight = null;
-const CACHE_TTL_MS = 2500;
+const CACHE_TTL_MS = 20000;
 
 export function invalidateVisitorsCache() {
     visitorsCache = null;

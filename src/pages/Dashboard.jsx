@@ -45,10 +45,27 @@ export default function Dashboard() {
         },
     });
 
-    const printBadge = (visitor) => {
-        setSelectedVisitor(visitor);
+    const printBadge = async (visitor) => {
+        let fullVisitor = visitor;
+        if ((!visitor.photoData && !visitor.photo) && visitor.id) {
+            try {
+                const fresh = await db.visitors.get(visitor.id);
+                if (fresh) fullVisitor = fresh;
+            } catch (_e) {}
+        }
+        setSelectedVisitor(fullVisitor);
         isPrintingRef.current = true;
         setTimeout(() => handlePrint(), 100);
+    };
+
+    const openVisitorPreview = async (visitor) => {
+        setPreviewVisitor(visitor);
+        if ((!visitor.photoData && !visitor.photo) && visitor.id) {
+            try {
+                const fresh = await db.visitors.get(visitor.id);
+                if (fresh) setPreviewVisitor(fresh);
+            } catch (_e) {}
+        }
     };
 
     const isFetchingRef = useRef(false);
@@ -90,11 +107,11 @@ export default function Dashboard() {
 
         window.addEventListener('visitor-scan-processed', handleScanProcessed);
 
-        // Periodic refresh every 5 seconds for live dashboard (with in-flight & visibility guard)
+        // Periodic refresh every 15 seconds for live dashboard (with in-flight & visibility guard)
         const interval = setInterval(() => {
             if (document.hidden) return;
             fetchDashboardData();
-        }, 5000);
+        }, 15000);
 
         return () => {
             clearInterval(interval);
@@ -691,7 +708,7 @@ export default function Dashboard() {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                         <div 
                                                             className="avatar-clickable" 
-                                                            onClick={() => setPreviewVisitor(v)}
+                                                            onClick={() => openVisitorPreview(v)}
                                                             title="Touch / click to view visitor details & photo"
                                                         >
                                                             <img 
@@ -706,7 +723,7 @@ export default function Dashboard() {
                                                         <div style={{ minWidth: 0, overflow: 'hidden' }}>
                                                             <div 
                                                                 style={{ fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}
-                                                                onClick={() => setPreviewVisitor(v)}
+                                                                onClick={() => openVisitorPreview(v)}
                                                                 title="Touch / click to view visitor details"
                                                             >
                                                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</span>

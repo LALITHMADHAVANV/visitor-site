@@ -15,9 +15,11 @@ export async function connectToDatabase() {
             connectTimeoutMS: 5000,
             serverSelectionTimeoutMS: 5000,
             maxPoolSize: 10,
-            minPoolSize: 1,
         });
-        global._mongoClientPromise = client.connect();
+        global._mongoClientPromise = client.connect().catch(err => {
+            global._mongoClientPromise = null;
+            throw err;
+        });
     }
 
     const client = await global._mongoClientPromise;
