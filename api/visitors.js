@@ -70,6 +70,37 @@ export default async function handler(req, res) {
                 return res.status(200).json(visitors.map(normalizeDoc));
             }
 
+            if (req.query?.cleanupOldPhotos === 'true') {
+                const allVisitors = await collection.find({}, { projection: { id: 1, _id: 1, phone: 1, created_at: 1, checkInTime: 1, photoData: 1, photo: 1 } }).toArray();
+                const byPhone = {};
+                for (const v of allVisitors) {
+                    const p = v.phone ? String(v.phone).trim() : null;
+                    if (p && p.length === 10) {
+                        if (!byPhone[p]) byPhone[p] = [];
+                        byPhone[p].push(v);
+                    }
+                }
+                const toPruneIds = [];
+                for (const [phone, list] of Object.entries(byPhone)) {
+                    if (list.length > 1) {
+                        list.sort((a, b) => new Date(b.created_at || b.checkInTime || 0) - new Date(a.created_at || a.checkInTime || 0));
+                        for (let i = 1; i < list.length; i++) {
+                            const oldItem = list[i];
+                            if (oldItem.photoData || oldItem.photo) {
+                                toPruneIds.push(oldItem.id || String(oldItem._id));
+                            }
+                        }
+                    }
+                }
+                if (toPruneIds.length > 0) {
+                    await collection.updateMany(
+                        { $or: [{ id: { $in: toPruneIds } }, { _id: { $in: toPruneIds } }] },
+                        { $unset: { photoData: "", photo: "", photo_data: "", photoUrl: "" } }
+                    );
+                }
+                return res.status(200).json({ success: true, prunedCount: toPruneIds.length });
+            }
+
             const visitors = await collection.find({}, { projection }).sort({ created_at: -1 }).toArray();
             return res.status(200).json(visitors.map(normalizeDoc));
         }
@@ -82,6 +113,26 @@ export default async function handler(req, res) {
             if (!visitor.created_at) {
                 visitor.created_at = new Date().toISOString();
             }
+
+            // If returning visitor, delete heavy photo from their previous visits (keep visit details, timestamps, etc. intact)
+            if (visitor.phone && String(visitor.phone).trim()) {
+                const cleanPhone = String(visitor.phone).trim();
+                await collection.updateMany(
+                    { 
+                        phone: cleanPhone, 
+                        _id: { $ne: visitor.id } 
+                    },
+                    { 
+                        $unset: { 
+                            photoData: "", 
+                            photo: "", 
+                            photo_data: "", 
+                            photoUrl: "" 
+                        } 
+                    }
+                ).catch(err => console.warn('Could not prune previous photos:', err));
+            }
+
             const doc = { _id: visitor.id, ...visitor };
             await collection.replaceOne({ _id: visitor.id }, doc, { upsert: true });
             return res.status(200).json(normalizeDoc(doc));
