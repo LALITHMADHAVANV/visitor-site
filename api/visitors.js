@@ -44,65 +44,96 @@ export default async function handler(req, res) {
                 return res.status(200).json(normalizeDoc(visitor));
             }
 
-            // By default omit heavy base64 photos from list queries to keep responses under 200ms
-            const projection = (includePhoto === 'true' || req.query?.includePhoto === 'true') 
-                ? {} 
-                : { photoData: 0, photo: 0, photo_data: 0 };
+            const page = Math.max(1, parseInt(req.query?.page) || 1);
+            const limit = Math.max(0, parseInt(req.query?.limit) || 0);
+            const skip = (page - 1) * limit;
 
+            // For paginated chunks (<= 50 items), photos are included by default so photos display crisp and clear.
+            // For full bulk list without limit, heavy photos are omitted to prevent network stalls.
+            const wantsPhotos = includePhoto === 'true' || (limit > 0 && limit <= 50 && includePhoto !== 'false');
+            const projection = wantsPhotos ? {} : { photoData: 0, photo: 0, photo_data: 0 };
+
+            let filter = {};
             if (phone) {
-                const visitors = await collection.find({ phone: String(phone).trim() }, { projection }).sort({ created_at: -1 }).toArray();
-                return res.status(200).json(visitors.map(normalizeDoc));
-            }
-
-            if (startsWith) {
-                const visitors = await collection.find({ id: { $regex: `^${startsWith}`, $options: 'i' } }, { projection }).toArray();
-                return res.status(200).json(visitors.map(normalizeDoc));
-            }
-
-            if (field && value) {
+                filter.phone = String(phone).trim();
+            } else if (startsWith) {
+                filter.id = { $regex: `^${startsWith}`, $options: 'i' };
+            } else if (field && value) {
                 const cleanVal = String(value).trim();
-                const visitors = await collection.find({
-                    $or: [
-                        { [field]: cleanVal },
-                        { [field]: { $regex: `^${cleanVal}$`, $options: 'i' } }
-                    ]
-                }, { projection }).sort({ created_at: -1 }).toArray();
-                return res.status(200).json(visitors.map(normalizeDoc));
+                filter.$or = [
+                    { [field]: cleanVal },
+                    { [field]: { $regex: `^${cleanVal}$`, $options: 'i' } }
+                ];
+            } else {
+                const search = (req.query?.search || '').trim();
+                const status = (req.query?.status || 'all').trim();
+                const fromDate = (req.query?.fromDate || '').trim();
+                const toDate = (req.query?.toDate || '').trim();
+
+                const andConditions = [];
+
+                if (search) {
+                    const searchRegex = { $regex: search, $options: 'i' };
+                    andConditions.push({
+                        $or: [
+                            { name: searchRegex },
+                            { id: searchRegex },
+                            { visitorNo: searchRegex },
+                            { company: searchRegex },
+                            { phone: searchRegex },
+                            { hostName: searchRegex },
+                            { idNumber: searchRegex },
+                            { idType: searchRegex }
+                        ]
+                    });
+                }
+
+                if (status && status !== 'all') {
+                    andConditions.push({ status });
+                }
+
+                if (fromDate || toDate) {
+                    const dateFilter = {};
+                    if (fromDate) dateFilter.$gte = fromDate;
+                    if (toDate) dateFilter.$lte = toDate + 'T23:59:59.999Z';
+                    andConditions.push({
+                        $or: [
+                            { checkInTime: dateFilter },
+                            { created_at: dateFilter }
+                        ]
+                    });
+                }
+
+                if (andConditions.length > 0) {
+                    filter = { $and: andConditions };
+                }
             }
 
-            if (req.query?.cleanupOldPhotos === 'true') {
-                const allVisitors = await collection.find({}, { projection: { id: 1, _id: 1, phone: 1, created_at: 1, checkInTime: 1, photoData: 1, photo: 1 } }).toArray();
-                const byPhone = {};
-                for (const v of allVisitors) {
-                    const p = v.phone ? String(v.phone).trim() : null;
-                    if (p && p.length === 10) {
-                        if (!byPhone[p]) byPhone[p] = [];
-                        byPhone[p].push(v);
-                    }
-                }
-                const toPruneIds = [];
-                for (const [phone, list] of Object.entries(byPhone)) {
-                    if (list.length > 1) {
-                        list.sort((a, b) => new Date(b.created_at || b.checkInTime || 0) - new Date(a.created_at || a.checkInTime || 0));
-                        for (let i = 1; i < list.length; i++) {
-                            const oldItem = list[i];
-                            if (oldItem.photoData || oldItem.photo) {
-                                toPruneIds.push(oldItem.id || String(oldItem._id));
-                            }
-                        }
-                    }
-                }
-                if (toPruneIds.length > 0) {
-                    await collection.updateMany(
-                        { $or: [{ id: { $in: toPruneIds } }, { _id: { $in: toPruneIds } }] },
-                        { $unset: { photoData: "", photo: "", photo_data: "", photoUrl: "" } }
-                    );
-                }
-                return res.status(200).json({ success: true, prunedCount: toPruneIds.length });
+            const total = await collection.countDocuments(filter);
+            const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+
+            let cursor = collection.find(filter, { projection }).sort({ checkInTime: -1, created_at: -1 });
+            if (limit > 0) {
+                cursor = cursor.skip(skip).limit(limit);
             }
 
-            const visitors = await collection.find({}, { projection }).sort({ created_at: -1 }).toArray();
-            return res.status(200).json(visitors.map(normalizeDoc));
+            const visitors = await cursor.toArray();
+            const normalized = visitors.map(normalizeDoc);
+
+            if (req.query?.paginated === 'true') {
+                return res.status(200).json({
+                    visitors: normalized,
+                    total,
+                    page,
+                    limit: limit || total,
+                    totalPages
+                });
+            }
+
+            res.setHeader('X-Total-Count', String(total));
+            res.setHeader('X-Total-Pages', String(totalPages));
+            res.setHeader('X-Current-Page', String(page));
+            return res.status(200).json(normalized);
         }
 
         if (req.method === 'POST') {
@@ -113,26 +144,6 @@ export default async function handler(req, res) {
             if (!visitor.created_at) {
                 visitor.created_at = new Date().toISOString();
             }
-
-            // If returning visitor, delete heavy photo from their previous visits (keep visit details, timestamps, etc. intact)
-            if (visitor.phone && String(visitor.phone).trim()) {
-                const cleanPhone = String(visitor.phone).trim();
-                await collection.updateMany(
-                    { 
-                        phone: cleanPhone, 
-                        _id: { $ne: visitor.id } 
-                    },
-                    { 
-                        $unset: { 
-                            photoData: "", 
-                            photo: "", 
-                            photo_data: "", 
-                            photoUrl: "" 
-                        } 
-                    }
-                ).catch(err => console.warn('Could not prune previous photos:', err));
-            }
-
             const doc = { _id: visitor.id, ...visitor };
             await collection.replaceOne({ _id: visitor.id }, doc, { upsert: true });
             return res.status(200).json(normalizeDoc(doc));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../db';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../AuthContext';
@@ -6,117 +6,136 @@ import { getVisitorPhoto } from '../avatarUtils';
 
 export default function Visitors() {
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
     const [visitors, setVisitors] = useState([]);
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
     const { user } = useAuth();
     const isFetchingRef = useRef(false);
 
+    // Debounce search input by 300ms so we don't query on every keystroke
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Reset to page 1 whenever search, status, date filters, or pageSize change
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, filterStatus, fromDate, toDate, pageSize]);
+
+    // Fetch paginated visitors
     useEffect(() => {
         let isMounted = true;
 
         const load = async () => {
             if (isFetchingRef.current || document.visibilityState === 'hidden') return;
             isFetchingRef.current = true;
+            setIsLoading(true);
             try {
-                const data = await db.visitors.toArray();
+                const res = await db.visitors.getPaginated({
+                    page,
+                    limit: pageSize,
+                    search: debouncedSearch,
+                    status: filterStatus,
+                    fromDate,
+                    toDate,
+                    includePhoto: true
+                });
                 if (isMounted) {
-                    setVisitors(data || []);
+                    setVisitors(res.visitors || []);
+                    setTotalRecords(res.total || 0);
+                    setTotalPages(res.totalPages || 1);
                 }
             } catch (err) {
-                console.error("Error loading visitors:", err);
+                console.error("Error loading paginated visitors:", err);
             } finally {
                 isFetchingRef.current = false;
+                if (isMounted) setIsLoading(false);
             }
         };
 
         load();
-        const interval = setInterval(() => {
-            if (document.hidden) return;
-            load();
-        }, 20000);
+
+        // Auto-refresh every 25 seconds when on first page without active search
+        let interval = null;
+        if (page === 1 && !debouncedSearch) {
+            interval = setInterval(() => {
+                if (!document.hidden) load();
+            }, 25000);
+        }
 
         return () => {
             isMounted = false;
-            clearInterval(interval);
+            if (interval) clearInterval(interval);
         };
-    }, []);
+    }, [page, pageSize, debouncedSearch, filterStatus, fromDate, toDate]);
 
-    const filteredVisitors = useMemo(() => {
-        return visitors.filter(v => {
-            const term = searchTerm.toLowerCase().trim();
-            const matchesSearch = !term ||
-                v.name?.toLowerCase().includes(term) ||
-                v.id?.toLowerCase().includes(term) ||
-                (v.visitorNo && v.visitorNo.toLowerCase().includes(term)) ||
-                (v.idNumber && v.idNumber.toLowerCase().includes(term)) ||
-                (v.idType && v.idType.toLowerCase().includes(term)) ||
-                (v.company && v.company.toLowerCase().includes(term)) ||
-                (v.phone && v.phone.includes(term)) ||
-                (v.extraMembersIds && v.extraMembersIds.toLowerCase().includes(term)) ||
-                (v.hostName && v.hostName.toLowerCase().includes(term));
+    // Fetch all matching records for full Excel/PDF export (without heavy photos for blazing speed)
+    const fetchAllMatchingForExport = async () => {
+        const res = await db.visitors.getPaginated({
+            page: 1,
+            limit: 10000,
+            search: debouncedSearch,
+            status: filterStatus,
+            fromDate,
+            toDate,
+            includePhoto: false
+        });
+        return res.visitors || [];
+    };
 
-            const matchesStatus = filterStatus === 'all' || v.status === filterStatus;
-
-            // From Date to To Date Range Filter
-            let matchesDate = true;
-            if (fromDate || toDate) {
-                const time = v.checkInTime || v.created_at;
-                if (!time) {
-                    matchesDate = false;
-                } else {
-                    const d = new Date(time);
-                    if (isNaN(d.getTime())) {
-                        matchesDate = false;
-                    } else {
-                        const year = d.getFullYear();
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const vDate = `${year}-${month}-${day}`;
-
-                        if (fromDate && vDate < fromDate) matchesDate = false;
-                        if (toDate && vDate > toDate) matchesDate = false;
-                    }
-                }
-            }
-
-            return matchesSearch && matchesStatus && matchesDate;
-        }).sort((a, b) => new Date(b.checkInTime || 0) - new Date(a.checkInTime || 0));
-    }, [visitors, searchTerm, filterStatus, fromDate, toDate]);
-
-    const exportToExcel = () => {
+    const exportToExcel = async () => {
         if (user?.role !== 'admin') return;
-        const data = filteredVisitors.map((v, index) => ({
-            'S.No': index + 1,
-            'Visitor ID': v.visitorNo || v.id,
-            'Full Name': v.name,
-            'Phone Number': v.phone || '-',
-            'ID Proof Type': v.idType || '-',
-            'ID Proof Number': v.idNumber || '-',
-            'Company / Organization': v.company || '-',
-            'To Meet': v.hostName,
-            'Purpose of Visit': v.purpose || '-',
-            'Vehicle Number': v.vehicleNo || 'No',
-            'Extra Members': v.hasExtraMembers === 'yes' ? `${v.extraMembersCount} (${v.extraMembersIds || ''})` : 'No',
-            'Status': v.status === 'checked-in' ? 'Inside' : (v.status === 'registered' ? 'Registered' : (v.status === 'expected' ? 'Expected' : 'Checked Out')),
-            'Check-In Time': v.checkInTime ? new Date(v.checkInTime).toLocaleString() : '-',
-            'Check-Out Time': v.checkOutTime ? new Date(v.checkOutTime).toLocaleString() : '-'
-        }));
+        setIsExportingExcel(true);
+        try {
+            const records = await fetchAllMatchingForExport();
+            const data = records.map((v, index) => ({
+                'S.No': index + 1,
+                'Visitor ID': v.visitorNo || v.id,
+                'Full Name': v.name,
+                'Phone Number': v.phone || '-',
+                'ID Proof Type': v.idType || '-',
+                'ID Proof Number': v.idNumber || '-',
+                'Company / Organization': v.company || '-',
+                'To Meet': v.hostName,
+                'Purpose of Visit': v.purpose || '-',
+                'Vehicle Number': v.vehicleNo || 'No',
+                'Extra Members': v.hasExtraMembers === 'yes' ? `${v.extraMembersCount} (${v.extraMembersIds || ''})` : 'No',
+                'Status': v.status === 'checked-in' ? 'Inside' : (v.status === 'registered' ? 'Registered' : (v.status === 'expected' ? 'Expected' : 'Checked Out')),
+                'Check-In Time': v.checkInTime ? new Date(v.checkInTime).toLocaleString() : '-',
+                'Check-Out Time': v.checkOutTime ? new Date(v.checkOutTime).toLocaleString() : '-'
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Visitors");
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Visitors");
 
-        const dateRangeLabel = fromDate ? `${fromDate}_to_${toDate || 'latest'}` : (toDate ? `upto_${toDate}` : new Date().toISOString().split('T')[0]);
-        XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateRangeLabel}.xlsx`);
+            const dateRangeLabel = fromDate ? `${fromDate}_to_${toDate || 'latest'}` : (toDate ? `upto_${toDate}` : new Date().toISOString().split('T')[0]);
+            XLSX.writeFile(workbook, `Esstee_Visitors_Report_${dateRangeLabel}.xlsx`);
+        } catch (err) {
+            console.error("Export to Excel failed:", err);
+            alert("Failed to export Excel report: " + err.message);
+        } finally {
+            setIsExportingExcel(false);
+        }
     };
 
     const exportToPDF = async () => {
         if (user?.role !== 'admin') return;
         setIsExportingPdf(true);
         try {
+            const records = await fetchAllMatchingForExport();
             const { jsPDF } = await import('jspdf');
             const autoTable = (await import('jspdf-autotable')).default;
 
@@ -136,7 +155,7 @@ export default function Visitors() {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 116, 139); // slate-500
-            
+
             const filterParts = [];
             if (fromDate && toDate) {
                 filterParts.push(`Date Range: ${fromDate} to ${toDate}`);
@@ -150,10 +169,10 @@ export default function Visitors() {
             if (filterStatus !== 'all') {
                 filterParts.push(`Status: ${filterStatus === 'checked-in' ? 'Inside' : filterStatus}`);
             }
-            if (searchTerm.trim()) {
-                filterParts.push(`Search: "${searchTerm.trim()}"`);
+            if (debouncedSearch.trim()) {
+                filterParts.push(`Search: "${debouncedSearch.trim()}"`);
             }
-            filterParts.push(`Records: ${filteredVisitors.length}`);
+            filterParts.push(`Records: ${records.length}`);
             filterParts.push(`Exported: ${new Date().toLocaleString()}`);
 
             doc.text(filterParts.join('   |   '), 40, 52);
@@ -163,10 +182,10 @@ export default function Visitors() {
                 ['#', 'Visitor ID', 'Visitor Name', 'Company', 'Persons', 'Phone', 'ID Proof', 'To Meet', 'Vehicle', 'Check-In', 'Check-Out', 'Status']
             ];
 
-            const tableRows = filteredVisitors.map((v, index) => {
+            const tableRows = records.map((v, index) => {
                 const extraCount = v.hasExtraMembers === 'yes' ? (parseInt(v.extraMembersCount, 10) || 0) : 0;
                 const totalPersons = 1 + extraCount;
-                
+
                 let idProof = '-';
                 if (v.idType || v.idNumber) {
                     idProof = `${v.idType || ''} ${v.idNumber ? '(' + v.idNumber + ')' : ''}`.trim();
@@ -318,9 +337,32 @@ export default function Visitors() {
 
     const resetFilters = () => {
         setSearchTerm('');
+        setDebouncedSearch('');
         setFilterStatus('all');
         setFromDate('');
         setToDate('');
+        setPage(1);
+    };
+
+    const getPageNumbers = () => {
+        if (totalPages <= 5) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        const pages = [1];
+        let start = Math.max(2, page - 1);
+        let end = Math.min(totalPages - 1, page + 1);
+
+        if (page <= 3) {
+            end = 4;
+        } else if (page >= totalPages - 2) {
+            start = totalPages - 3;
+        }
+
+        if (start > 2) pages.push('...');
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (end < totalPages - 1) pages.push('...');
+        pages.push(totalPages);
+        return pages;
     };
 
     return (
@@ -461,7 +503,7 @@ export default function Visitors() {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
-                            {filteredVisitors.length} {filteredVisitors.length === 1 ? 'record' : 'records'}
+                            {totalRecords} {totalRecords === 1 ? 'record' : 'records'}
                         </span>
 
                         {user?.role === 'admin' && (
@@ -469,7 +511,7 @@ export default function Visitors() {
                                 <button
                                     className="btn btn-secondary btn-sm"
                                     onClick={exportToPDF}
-                                    disabled={isExportingPdf}
+                                    disabled={isExportingPdf || isLoading}
                                     title="Export filtered records as PDF document"
                                     style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                 >
@@ -479,11 +521,12 @@ export default function Visitors() {
                                 <button
                                     className="btn btn-secondary btn-sm"
                                     onClick={exportToExcel}
+                                    disabled={isExportingExcel || isLoading}
                                     title="Export to Excel Spreadsheet"
                                     style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                 >
-                                    <i className="fa-solid fa-file-excel" style={{ color: '#059669' }}></i>
-                                    <span>Export Excel</span>
+                                    <i className={isExportingExcel ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-file-excel"} style={{ color: '#059669' }}></i>
+                                    <span>{isExportingExcel ? 'Exporting...' : 'Export Excel'}</span>
                                 </button>
                             </div>
                         )}
@@ -509,13 +552,13 @@ export default function Visitors() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredVisitors.length === 0 ? (
+                            {visitors.length === 0 ? (
                                 <tr>
                                     <td colSpan="11">
                                         <div className="empty-state">
                                             <i className="fa-regular fa-folder-open empty-state-icon"></i>
-                                            <p>No visitor history records match your search criteria.</p>
-                                            {hasActiveFilters && (
+                                            <p>{isLoading ? 'Loading visitor records...' : 'No visitor history records match your search criteria.'}</p>
+                                            {hasActiveFilters && !isLoading && (
                                                 <button
                                                     className="btn btn-secondary btn-sm"
                                                     style={{ marginTop: '12px' }}
@@ -528,7 +571,7 @@ export default function Visitors() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredVisitors.map((v, index) => {
+                                visitors.map((v, index) => {
                                     const extraCount = v.hasExtraMembers === 'yes' ? (parseInt(v.extraMembersCount, 10) || 0) : 0;
                                     const totalPersons = 1 + extraCount;
                                     const rawExtraIds = v.extraMembersIds || '';
@@ -541,7 +584,7 @@ export default function Visitors() {
                                         <React.Fragment key={v.id}>
                                             <tr>
                                                 <td style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '11px' }}>
-                                                    {index + 1}
+                                                    {(page - 1) * pageSize + index + 1}
                                                 </td>
                                                 <td>
                                                     <span className="badge-id" style={{ fontFamily: 'monospace', fontSize: '10.5px', fontWeight: '700' }}>
@@ -761,6 +804,85 @@ export default function Visitors() {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="pagination-container">
+                    <div className="pagination-info">
+                        Showing <strong>{totalRecords === 0 ? 0 : (page - 1) * pageSize + 1}</strong> to <strong>{Math.min(page * pageSize, totalRecords)}</strong> of <strong>{totalRecords}</strong> visitors
+                        {isLoading && (
+                            <span style={{ marginLeft: '10px', color: 'var(--accent-primary)', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <i className="fa-solid fa-spinner fa-spin"></i> Loading...
+                            </span>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Per page:</span>
+                            <select
+                                className="pagination-size-select"
+                                value={pageSize}
+                                onChange={(e) => setPageSize(Number(e.target.value))}
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+
+                        <div className="pagination-controls">
+                            <button
+                                className="pagination-btn"
+                                disabled={page <= 1 || isLoading}
+                                onClick={() => setPage(1)}
+                                title="First page"
+                            >
+                                <i className="fa-solid fa-angles-left"></i>
+                            </button>
+                            <button
+                                className="pagination-btn"
+                                disabled={page <= 1 || isLoading}
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                title="Previous page"
+                            >
+                                <i className="fa-solid fa-angle-left"></i>
+                            </button>
+
+                            {getPageNumbers().map((pNum, idx) => (
+                                pNum === '...' ? (
+                                    <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '12px' }}>...</span>
+                                ) : (
+                                    <button
+                                        key={pNum}
+                                        className={`pagination-btn ${page === pNum ? 'active' : ''}`}
+                                        onClick={() => setPage(pNum)}
+                                        disabled={isLoading}
+                                    >
+                                        {pNum}
+                                    </button>
+                                )
+                            ))}
+
+                            <button
+                                className="pagination-btn"
+                                disabled={page >= totalPages || isLoading}
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                title="Next page"
+                            >
+                                <i className="fa-solid fa-angle-right"></i>
+                            </button>
+                            <button
+                                className="pagination-btn"
+                                disabled={page >= totalPages || isLoading}
+                                onClick={() => setPage(totalPages)}
+                                title="Last page"
+                            >
+                                <i className="fa-solid fa-angles-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
