@@ -45,8 +45,19 @@ export default function MobileAction() {
 
                 // 1. Security Exit Scan (`action=checkout`)
                 if (actionParam === 'checkout') {
+                    if (statusRef.current === 'success-out') {
+                        return; // Already completed in this session
+                    }
+
+                    const checkOutAgeMs = v.checkOutTime ? (Date.now() - new Date(v.checkOutTime).getTime()) : Infinity;
+
                     if (v.status === 'checked-out') {
-                        if (statusRef.current !== 'already-checked-out') setStatus('already-checked-out');
+                        // If checked out recently (within last 3 minutes), treat as the current successful check-out (handles camera prefetch / re-scan)
+                        if (checkOutAgeMs < 180000) {
+                            setStatus('success-out');
+                        } else {
+                            if (statusRef.current !== 'already-checked-out') setStatus('already-checked-out');
+                        }
                     } else {
                         const checkOutTime = new Date().toISOString();
                         await db.visitors.update(v.id, {
@@ -57,7 +68,7 @@ export default function MobileAction() {
                         v.status = 'checked-out';
                         v.checkOutTime = checkOutTime;
                         setVisitor(v);
-                        if (statusRef.current !== 'success-out') setStatus('success-out');
+                        setStatus('success-out');
                     }
                     return;
                 }
@@ -80,7 +91,9 @@ export default function MobileAction() {
                 } else if (v.status === 'checked-in') {
                     if (statusRef.current !== 'success-out') setStatus('checkin-done');
                 } else if (v.status === 'checked-out') {
-                    if (statusRef.current !== 'already-checked-out') setStatus('already-checked-out');
+                    if (statusRef.current !== 'already-checked-out' && statusRef.current !== 'success-out') {
+                        setStatus('already-checked-out');
+                    }
                 } else if (v.status !== 'registered' && v.status !== 'expected') {
                     if (statusRef.current !== 'error') setStatus('error');
                 }
@@ -92,9 +105,14 @@ export default function MobileAction() {
 
         handleFlow();
 
-        // Polling interval to automatically update page when status changes
-        const interval = setInterval(handleFlow, 1500);
-        return () => clearInterval(interval);
+        // Polling interval only if not in checkout mode or not yet completed
+        let interval = null;
+        if (actionParam !== 'checkout') {
+            interval = setInterval(handleFlow, 2500);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [visitorId, actionParam]);
 
     // Security Check-In Action
@@ -146,9 +164,14 @@ export default function MobileAction() {
 
             <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '28px 24px', textAlign: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
-                    <img src="/company-logo.png" alt="Esstee Exports" style={{ height: '42px', objectFit: 'contain' }} />
+                    <img 
+                        src="/texplus-logo.png" 
+                        onError={(e) => { e.currentTarget.src = '/company-logo.png'; }} 
+                        alt="Texplus Logo" 
+                        style={{ height: '36px', objectFit: 'contain' }} 
+                    />
                     <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-primary)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        Welcome to Esstee Exports
+                        Welcome to Texplus
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -382,9 +405,66 @@ export default function MobileAction() {
                 {/* State 5: Security Scanned Exit QR Code (Checked Out) */}
                 {status === 'success-out' && (
                     <div>
-                        <i className="fa-solid fa-person-walking-arrow-right text-primary" style={{ fontSize: '56px', marginBottom: '16px' }}></i>
-                        <h3 style={{ color: 'var(--accent-primary)', marginBottom: '8px' }}>Checked Out Successfully!</h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Thank you for visiting. Have a safe trip!</p>
+                        <div style={{
+                            width: '72px',
+                            height: '72px',
+                            borderRadius: '50%',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 16px',
+                            color: '#10b981',
+                            fontSize: '36px'
+                        }}>
+                            <i className="fa-solid fa-circle-check"></i>
+                        </div>
+                        <h3 style={{ color: '#10b981', marginBottom: '8px', fontSize: '22px', fontWeight: 'bold' }}>
+                            Checked Out Successfully!
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
+                            Exit gate pass verified. Thank you for visiting!
+                        </p>
+
+                        <div style={{ 
+                            background: 'rgba(16, 185, 129, 0.06)', 
+                            border: '1px solid rgba(16, 185, 129, 0.2)', 
+                            borderRadius: '12px', 
+                            padding: '16px', 
+                            textAlign: 'left',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Visitor Name:</span>
+                                <strong style={{ color: 'var(--text-primary)' }}>{visitor?.name || 'Visitor'}</strong>
+                            </div>
+                            {(visitor?.visitorNo || visitor?.id) && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Pass ID / No:</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{visitor?.visitorNo || visitor?.id}</strong>
+                                </div>
+                            )}
+                            {visitor?.company && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Company:</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{visitor.company}</strong>
+                                </div>
+                            )}
+                            {visitor?.checkOutTime && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Exit Time:</span>
+                                    <strong style={{ color: '#10b981' }}>
+                                        {new Date(visitor.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(visitor.checkOutTime).toLocaleDateString()})
+                                    </strong>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: '10px' }}>
+                            <p style={{ color: 'var(--accent-primary)', fontSize: '13px', margin: 0, fontWeight: '500' }}>
+                                🚗 <strong>Gate pass completed.</strong> Have a safe journey!
+                            </p>
+                        </div>
                     </div>
                 )}
 

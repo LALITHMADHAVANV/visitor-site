@@ -44,6 +44,9 @@ export default async function handler(req, res) {
                 return res.status(200).json(normalizeDoc(visitor));
             }
 
+            // By default omit heavy base64 photos from list queries to keep responses under 200ms
+            const projection = includePhoto === 'true' ? {} : { photoData: 0, photo: 0, photo_data: 0 };
+
             if (phone) {
                 const visitors = await collection.find({ phone: String(phone).trim() }).sort({ created_at: -1 }).toArray();
                 return res.status(200).json(visitors.map(normalizeDoc));
