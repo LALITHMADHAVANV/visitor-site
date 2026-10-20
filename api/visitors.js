@@ -9,6 +9,28 @@ function normalizeDoc(doc) {
     };
 }
 
+function isVisitorTodayOrActive(v, now = new Date()) {
+    if (!v) return false;
+    if (v.status === 'checked-in') return true;
+
+    const time = v.checkInTime || v.created_at;
+    if (!time) return false;
+
+    const d = new Date(time);
+    if (isNaN(d.getTime())) return false;
+
+    const todayUTC = now.toISOString().slice(0, 10);
+    const dUTC = d.toISOString().slice(0, 10);
+    if (todayUTC === dUTC) return true;
+
+    const diffMs = now.getTime() - d.getTime();
+    if (diffMs >= 0 && diffMs < 36 * 60 * 60 * 1000) {
+        return true;
+    }
+
+    return false;
+}
+
 export default async function handler(req, res) {
     try {
         const collection = await getCollection('visitors');
@@ -47,11 +69,6 @@ export default async function handler(req, res) {
             const page = Math.max(1, parseInt(req.query?.page) || 1);
             const limit = Math.max(0, parseInt(req.query?.limit) || 0);
             const skip = (page - 1) * limit;
-
-            // For paginated chunks (<= 50 items), photos are included by default so photos display crisp and clear.
-            // For full bulk list without limit, heavy photos are omitted to prevent network stalls.
-            const wantsPhotos = includePhoto === 'true' || (limit > 0 && limit <= 50 && includePhoto !== 'false');
-            const projection = wantsPhotos ? {} : { photoData: 0, photo: 0, photo_data: 0 };
 
             let filter = {};
             if (phone) {
@@ -112,13 +129,39 @@ export default async function handler(req, res) {
             const total = await collection.countDocuments(filter);
             const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
 
-            let cursor = collection.find(filter, { projection }).sort({ checkInTime: -1, created_at: -1 });
+            let cursor = collection.find(filter).sort({ checkInTime: -1, created_at: -1 });
             if (limit > 0) {
                 cursor = cursor.skip(skip).limit(limit);
             }
 
             const visitors = await cursor.toArray();
-            const normalized = visitors.map(normalizeDoc);
+            const now = new Date();
+
+            const normalized = visitors.map(doc => {
+                const v = normalizeDoc(doc);
+                if (!v) return null;
+
+                // 1. If explicitly requested not to include photos (e.g. bulk export)
+                if (includePhoto === 'false') {
+                    const { photoData, photo, photo_data, ...rest } = v;
+                    return rest;
+                }
+
+                // 2. If explicitly requested photos, or paginated page (<= 50 items)
+                if (includePhoto === 'true' || (limit > 0 && limit <= 50)) {
+                    return v;
+                }
+
+                // 3. For bulk lists (e.g. Dashboard fetching full list without limit):
+                // Keep photos for all visitors from today or currently checked-in inside premises
+                if (isVisitorTodayOrActive(v, now)) {
+                    return v;
+                }
+
+                // Strip heavy photo from older checked-out visitors
+                const { photoData, photo, photo_data, ...rest } = v;
+                return rest;
+            });
 
             if (req.query?.paginated === 'true') {
                 return res.status(200).json({
