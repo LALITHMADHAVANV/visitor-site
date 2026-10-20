@@ -70,6 +70,10 @@ export default async function handler(req, res) {
             const limit = Math.max(0, parseInt(req.query?.limit) || 0);
             const skip = (page - 1) * limit;
 
+            const isTodayScope = req.query?.today === 'true' || req.query?.scope === 'today';
+            const wantsPhotos = includePhoto === 'true' || isTodayScope || (limit > 0 && limit <= 50 && includePhoto !== 'false');
+            const projection = wantsPhotos ? {} : { photoData: 0, photo: 0, photo_data: 0 };
+
             let filter = {};
             if (phone) {
                 filter.phone = String(phone).trim();
@@ -88,6 +92,19 @@ export default async function handler(req, res) {
                 const toDate = (req.query?.toDate || '').trim();
 
                 const andConditions = [];
+
+                if (isTodayScope) {
+                    const now = new Date();
+                    // Cutoff covers 36 hours for local timezone and active visits
+                    const cutoff = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
+                    andConditions.push({
+                        $or: [
+                            { checkInTime: { $gte: cutoff } },
+                            { created_at: { $gte: cutoff } },
+                            { status: 'checked-in' }
+                        ]
+                    });
+                }
 
                 if (search) {
                     const searchRegex = { $regex: search, $options: 'i' };
@@ -126,42 +143,21 @@ export default async function handler(req, res) {
                 }
             }
 
-            const total = await collection.countDocuments(filter);
-            const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
-
-            let cursor = collection.find(filter).sort({ checkInTime: -1, created_at: -1 });
+            let cursor = collection.find(filter, { projection }).sort({ checkInTime: -1, created_at: -1, _id: -1 });
             if (limit > 0) {
                 cursor = cursor.skip(skip).limit(limit);
             }
 
-            const visitors = await cursor.toArray();
-            const now = new Date();
+            const visitorsPromise = cursor.toArray();
+            const countPromise = (limit > 0 || req.query?.paginated === 'true')
+                ? ((filter && Object.keys(filter).length > 0) ? collection.countDocuments(filter) : collection.estimatedDocumentCount())
+                : Promise.resolve(0);
 
-            const normalized = visitors.map(doc => {
-                const v = normalizeDoc(doc);
-                if (!v) return null;
+            const [visitors, totalCount] = await Promise.all([visitorsPromise, countPromise]);
+            const total = totalCount || visitors.length;
+            const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
 
-                // 1. If explicitly requested not to include photos (e.g. bulk export)
-                if (includePhoto === 'false') {
-                    const { photoData, photo, photo_data, ...rest } = v;
-                    return rest;
-                }
-
-                // 2. If explicitly requested photos, or paginated page (<= 50 items)
-                if (includePhoto === 'true' || (limit > 0 && limit <= 50)) {
-                    return v;
-                }
-
-                // 3. For bulk lists (e.g. Dashboard fetching full list without limit):
-                // Keep photos for all visitors from today or currently checked-in inside premises
-                if (isVisitorTodayOrActive(v, now)) {
-                    return v;
-                }
-
-                // Strip heavy photo from older checked-out visitors
-                const { photoData, photo, photo_data, ...rest } = v;
-                return rest;
-            });
+            const normalized = visitors.map(normalizeDoc);
 
             if (req.query?.paginated === 'true') {
                 return res.status(200).json({

@@ -74,8 +74,23 @@ export default function Dashboard() {
         if (isFetchingRef.current || document.visibilityState === 'hidden') return;
         isFetchingRef.current = true;
         try {
-            const visitorsData = await db.visitors.toArray();
-            setAllVisitors(visitorsData || []);
+            // 1. Fetch today's visitors with camera photos (only ~20 items, fast ~150ms)
+            const todayData = await db.visitors.getToday({ includePhoto: true });
+
+            // 2. Fetch lightweight history without photos for returning visitor detection (cached)
+            const historyData = await db.visitors.toArray().catch(() => []);
+
+            const todayMap = new Map((todayData || []).map(v => [v.id, v]));
+            const merged = (historyData || []).map(v => todayMap.get(v.id) || v);
+
+            // Ensure any new today visitor is in the list
+            todayData?.forEach(v => {
+                if (!merged.some(m => m.id === v.id)) {
+                    merged.unshift(v);
+                }
+            });
+
+            setAllVisitors(merged.length > 0 ? merged : (todayData || []));
         } catch (error) {
             console.error("Error loading dashboard data:", error);
         } finally {
