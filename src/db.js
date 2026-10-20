@@ -91,6 +91,15 @@ export const db = {
                 totalPages: result.totalPages || 1
             };
         },
+        async getToday({ includePhoto = true } = {}) {
+            const params = new URLSearchParams();
+            params.set('today', 'true');
+            if (includePhoto) params.set('includePhoto', 'true');
+            const res = await fetch(`/api/visitors?${params.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch today visitors');
+            const data = await res.json();
+            return (data || []).map(normalizeVisitor);
+        },
         async toArray() {
             const now = Date.now();
             if (visitorsCache && (now - visitorsCacheTimestamp < CACHE_TTL_MS)) {
