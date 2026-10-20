@@ -69,6 +69,28 @@ export const db = {
             const data = await res.json();
             return normalizeVisitor(data);
         },
+        async getPaginated({ page = 1, limit = 20, includePhoto = true, search = '', status = 'all', fromDate = '', toDate = '' } = {}) {
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('limit', String(limit));
+            params.set('paginated', 'true');
+            if (includePhoto) params.set('includePhoto', 'true');
+            if (search) params.set('search', search);
+            if (status && status !== 'all') params.set('status', status);
+            if (fromDate) params.set('fromDate', fromDate);
+            if (toDate) params.set('toDate', toDate);
+
+            const res = await fetch(`/api/visitors?${params.toString()}`);
+            if (!res.ok) throw new Error('Failed to fetch paginated visitors');
+            const result = await res.json();
+            return {
+                visitors: (result.visitors || []).map(normalizeVisitor),
+                total: result.total || 0,
+                page: result.page || 1,
+                limit: result.limit || limit,
+                totalPages: result.totalPages || 1
+            };
+        },
         async toArray() {
             const now = Date.now();
             if (visitorsCache && (now - visitorsCacheTimestamp < CACHE_TTL_MS)) {
