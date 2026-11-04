@@ -37,7 +37,10 @@ export async function connectToDatabase() {
     }
 
     const client = await global._mongoClientPromise;
-    const dbName = uri.split('/').pop().split('?')[0] || 'visitor_db';
+    let dbName = uri.split('/').pop().split('?')[0];
+    if (!dbName || dbName.includes(':') || dbName.includes('.')) {
+        dbName = 'visitor_db';
+    }
     const db = client.db(dbName);
 
     global._mongoClient = client;

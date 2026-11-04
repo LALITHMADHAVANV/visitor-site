@@ -8,7 +8,10 @@ async function seed() {
 
     try {
         await client.connect();
-        const dbName = uri.split('/').pop().split('?')[0] || 'visitor_db';
+        let dbName = uri.split('/').pop().split('?')[0];
+        if (!dbName || dbName.includes(':') || dbName.includes('.')) {
+            dbName = 'visitor_db';
+        }
         const db = client.db(dbName);
 
         console.log(`Using database: ${dbName}`);
