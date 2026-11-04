@@ -1,16 +1,18 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/visitor_db';
+// Project: visitor (cluster0.tb5mu8u.mongodb.net) -> Database: visitor
+const DEFAULT_URI = 'mongodb+srv://lalithmadhavan2005_db_user:XUIEAxbJ7XVHG5pm@cluster0.tb5mu8u.mongodb.net/visitor?retryWrites=true&w=majority&appName=visitor';
+const uri = process.env.MONGODB_URI || DEFAULT_URI;
 
 async function seed() {
-    console.log(`Connecting to MongoDB at: ${uri}`);
+    console.log(`Connecting to MongoDB at: ${uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
     const client = new MongoClient(uri);
 
     try {
         await client.connect();
-        let dbName = uri.split('/').pop().split('?')[0];
+        let dbName = process.env.MONGODB_DB || uri.split('/').pop().split('?')[0];
         if (!dbName || dbName.includes(':') || dbName.includes('.')) {
-            dbName = 'visitor_db';
+            dbName = 'visitor';
         }
         const db = client.db(dbName);
 

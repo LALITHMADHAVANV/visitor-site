@@ -340,7 +340,7 @@ async function runImport() {
         process.exit(0);
     }
 
-    const uri = 'mongodb+srv://lalithmadhavan2005_db_user:5Er1LsAVvAnwrWG2@cluster0.ucek7vf.mongodb.net/visitor?appName=Cluster0';
+    const uri = customUri || process.env.MONGODB_URI || 'mongodb+srv://lalithmadhavan2005_db_user:XUIEAxbJ7XVHG5pm@cluster0.tb5mu8u.mongodb.net/visitor?retryWrites=true&w=majority&appName=visitor';
     console.log(`\n🔌 Connecting to MongoDB: ${uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`);
 
     const client = new MongoClient(uri, {
@@ -350,7 +350,7 @@ async function runImport() {
 
     try {
         await client.connect();
-        const dbName = uri.split('/').pop().split('?')[0] || 'visitor_db';
+        const dbName = process.env.MONGODB_DB || uri.split('/').pop().split('?')[0] || 'visitor';
         const db = client.db(dbName);
         const collection = db.collection('visitors');
 

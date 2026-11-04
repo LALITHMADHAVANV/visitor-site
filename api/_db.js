@@ -1,6 +1,9 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/visitor_db';
+// Project: visitor (cluster0.tb5mu8u.mongodb.net) -> Database: visitor
+const DEFAULT_URI = 'mongodb+srv://lalithmadhavan2005_db_user:XUIEAxbJ7XVHG5pm@cluster0.tb5mu8u.mongodb.net/visitor?retryWrites=true&w=majority&appName=visitor';
+const uri = process.env.MONGODB_URI || DEFAULT_URI;
+const defaultDbName = process.env.MONGODB_DB || 'visitor';
 
 let cachedClient = global._mongoClient || null;
 let cachedDb = global._mongoDb || null;
@@ -37,9 +40,9 @@ export async function connectToDatabase() {
     }
 
     const client = await global._mongoClientPromise;
-    let dbName = uri.split('/').pop().split('?')[0];
+    let dbName = process.env.MONGODB_DB || uri.split('/').pop().split('?')[0];
     if (!dbName || dbName.includes(':') || dbName.includes('.')) {
-        dbName = 'visitor_db';
+        dbName = defaultDbName;
     }
     const db = client.db(dbName);
 
@@ -57,4 +60,3 @@ export async function getCollection(collectionName) {
     const { db } = await connectToDatabase();
     return db.collection(collectionName);
 }
-
