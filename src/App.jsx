@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Visitors from './pages/Visitors';
+import Reports from './pages/Reports';
 import PreRegister from './pages/PreRegister';
 import HardwareScannerListener from './components/HardwareScannerListener';
 import MobileAction from './pages/MobileAction';
@@ -77,6 +78,7 @@ function AppContent() {
           </AppLayout>
         } />
 
+        <Route path="/reports/:reportType?" element={<AppLayout><Reports /></AppLayout>} />
         <Route path="/preregister" element={
           <AppLayout>
             <PreRegister />

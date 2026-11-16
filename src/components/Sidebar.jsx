@@ -49,6 +49,10 @@ export default function Sidebar() {
                     <i className="fa-solid fa-clock-rotate-left"></i>
                     <span>Visitor History</span>
                 </NavLink>
+                <NavLink to="/reports" className={({isActive}) => isActive ? "nav-link active" : "nav-link"}>
+                    <i className="fa-solid fa-chart-column"></i>
+                    <span>Reports</span>
+                </NavLink>
             </nav>
 
             <div className="sidebar-footer">

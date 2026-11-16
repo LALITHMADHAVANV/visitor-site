@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import { useReactToPrint } from 'react-to-print';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../db';
+import { isExpiredRegistration } from '../visitorExpiry';
 import { useAuth } from '../AuthContext';
 import { fetchHosts, saveHost } from '../hosts';
 import Badge, { THERMAL_80MM_PAGE_STYLE } from '../components/Badge';
@@ -90,7 +91,7 @@ export default function Dashboard() {
                 }
             });
 
-            setAllVisitors(merged.length > 0 ? merged : (todayData || []));
+            setAllVisitors((merged.length > 0 ? merged : (todayData || [])).filter(visitor => !isExpiredRegistration(visitor)));
         } catch (error) {
             console.error("Error loading dashboard data:", error);
         } finally {
