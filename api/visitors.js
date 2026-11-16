@@ -1,4 +1,6 @@
 import { getCollection } from './_db.js';
+import { removeExpiredRegistrations } from './_visitorExpiry.js';
+import { REGISTRATION_TIMEOUT_MS } from '../src/visitorExpiry.js';
 
 function normalizeDoc(doc) {
     if (!doc) return null;
@@ -34,6 +36,7 @@ function isVisitorTodayOrActive(v, now = new Date()) {
 export default async function handler(req, res) {
     try {
         const collection = await getCollection('visitors');
+        await removeExpiredRegistrations(collection);
 
         if (req.method === 'GET') {
             const { id, visitorNo, phone, startsWith, field, value, includePhoto } = req.query || {};
@@ -72,7 +75,9 @@ export default async function handler(req, res) {
 
             const isTodayScope = req.query?.today === 'true' || req.query?.scope === 'today';
             const wantsPhotos = includePhoto === 'true' || isTodayScope || (limit > 0 && limit <= 50 && includePhoto !== 'false');
-            const projection = wantsPhotos ? {} : { photoData: 0, photo: 0, photo_data: 0 };
+            const projection = req.query?.report === 'true'
+                ? { id: 1, visitorNo: 1, name: 1, phone: 1, company: 1, hostName: 1, hostname: 1, purpose: 1, checkInTime: 1, checkOutTime: 1, created_at: 1, status: 1, vehicleNo: 1, hasVehicle: 1, extraMembersCount: 1, hasExtraMembers: 1 }
+                : wantsPhotos ? {} : { photoData: 0, photo: 0, photo_data: 0 };
 
             let filter = {};
             if (phone) {
@@ -184,6 +189,10 @@ export default async function handler(req, res) {
                 visitor.created_at = new Date().toISOString();
             }
             const doc = { _id: visitor.id, ...visitor };
+            delete doc.registrationExpiresAt;
+            if (doc.status === 'registered') {
+                doc.registrationExpiresAt = new Date(Date.now() + REGISTRATION_TIMEOUT_MS);
+            }
             await collection.replaceOne({ _id: visitor.id }, doc, { upsert: true });
             return res.status(200).json(normalizeDoc(doc));
         }
@@ -197,11 +206,29 @@ export default async function handler(req, res) {
             }
             const updatePayload = { ...changes };
             delete updatePayload._id;
+            delete updatePayload.registrationExpiresAt;
+            if (updatePayload.status === 'registered') {
+                const existing = await collection.findOne({ $or: [{ id: targetId }, { _id: targetId }] });
+                updatePayload.registrationExpiresAt = existing?.status === 'registered'
+                    ? existing.registrationExpiresAt
+                    : new Date(Date.now() + REGISTRATION_TIMEOUT_MS);
+            }
 
-            await collection.updateOne(
-                { $or: [{ id: targetId }, { _id: targetId }] },
-                { $set: updatePayload }
+            const update = { $set: updatePayload };
+            if (updatePayload.status && updatePayload.status !== 'registered') {
+                update.$unset = { registrationExpiresAt: '' };
+            }
+
+            const result = await collection.updateOne(
+                { $and: [
+                    { $or: [{ id: targetId }, { _id: targetId }] },
+                    { $or: [{ status: { $ne: 'registered' } }, { registrationExpiresAt: { $gt: new Date() } }] }
+                ] },
+                update
             );
+            if (!result.matchedCount) {
+                return res.status(404).json({ error: 'Visitor not found or registration expired. Please register again.' });
+            }
             const updated = await collection.findOne({ $or: [{ id: targetId }, { _id: targetId }] });
             return res.status(200).json(normalizeDoc(updated));
         }

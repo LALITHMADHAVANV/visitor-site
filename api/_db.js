@@ -18,12 +18,20 @@ async function ensureIndexes(db) {
         col.createIndex({ created_at: -1 }, { background: true }).catch(() => {});
         col.createIndex({ status: 1 }, { background: true }).catch(() => {});
         col.createIndex({ visitorNo: 1 }, { background: true }).catch(() => {});
-    } catch (_e) {}
+        await col.createIndex({ registrationExpiresAt: 1 }, {
+            name: 'expire_pending_registrations',
+            expireAfterSeconds: 0,
+            partialFilterExpression: { status: 'registered' }
+        });
+    } catch (error) {
+        indexesEnsured = false;
+        console.error('Unable to ensure visitor indexes:', error.message);
+    }
 }
 
 export async function connectToDatabase() {
     if (cachedClient && cachedDb) {
-        ensureIndexes(cachedDb);
+        await ensureIndexes(cachedDb);
         return { client: cachedClient, db: cachedDb };
     }
 
@@ -51,7 +59,7 @@ export async function connectToDatabase() {
     cachedClient = client;
     cachedDb = db;
 
-    ensureIndexes(db);
+    await ensureIndexes(db);
 
     return { client, db };
 }

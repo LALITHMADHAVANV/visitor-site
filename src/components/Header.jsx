@@ -1,8 +1,7 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export default function Header() {
-    const navigate = useNavigate();
     const location = useLocation();
 
     const getPageInfo = () => {
@@ -13,6 +12,8 @@ export default function Header() {
                     title: 'Visitor Dashboard',
                     subtitle: 'Real-time gate activity, active visits, and daily stats'
                 };
+            case '/reports':
+                return { title: 'Reports & Analytics', subtitle: 'Visitor insights, host activity, and downloadable reports' };
             case '/register':
                 return {
                     title: 'New Visitor Registration',
@@ -43,17 +44,6 @@ export default function Header() {
             <div className="header-title-group">
                 <h1>{title}</h1>
                 <p className="header-subtitle">{subtitle}</p>
-            </div>
-            <div className="header-actions">
-                {location.pathname !== '/register' && (
-                    <button 
-                        className="btn btn-primary btn-sm-header" 
-                        onClick={() => navigate('/register')}
-                    >
-                        <i className="fa-solid fa-plus"></i>
-                        <span>New Visitor</span>
-                    </button>
-                )}
             </div>
         </header>
     );
